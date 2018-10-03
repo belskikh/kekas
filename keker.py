@@ -3,8 +3,9 @@ from tqdm import tqdm, tnrange
 import torch
 from torch.optim import Adam
 
-class Keker():
-    ''' The core class that proivdes main methods for training and predicting on given model and dataset
+class Keker:
+    ''' The core class that proivdes main methods for training and
+    predicting on given model and dataset
     '''
     def __init__(self, model, train_dl, val_dl=None, test_dl=None,
                  optimizer=None, criterion=None, metrics=None):
