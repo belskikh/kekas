@@ -16,12 +16,12 @@ class DataKek(Dataset):
         return len(self.data)
 
 
-class DataKeker(DataLoader):
-    def __init__(self, dataset):
-        super().__init__(dataset)
-
-    def __iter__(self):
-        pass
-
-    def __len__(self):
-        pass
+# class DataKeker(DataLoader):
+#     def __init__(self, dataset):
+#         super().__init__(dataset)
+#
+#     # def __iter__(self):
+#     #     pass
+#     #
+#     # def __len__(self):
+#     #     pass
