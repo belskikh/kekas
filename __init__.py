@@ -1,5 +1,5 @@
 from .keker import Keker
 from .data import DataKek, DataOwner
-from .transformer import Transformer
+from .transformations import Transformer, to_torch, normalize
 
 from . import modules
