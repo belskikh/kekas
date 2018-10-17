@@ -23,6 +23,8 @@ class Callback:
 
 class PrecisionCallback(Callback):
     def __init__(self):
+        pass
+
 
 class PrecisionCallback(Callback):
     """
@@ -30,9 +32,9 @@ class PrecisionCallback(Callback):
     """
 
     def __init__(self,
-                 input_key: str = "targets",
-                 output_key: str = "logits",
-                 precision_args: List[int] = None):
+                 input_key="targets",
+                 output_key="logits",
+                 precision_args=None):
         """
         :param input_key: input key to use for precision calculation;
             specifies our `y_true`.
@@ -49,11 +51,12 @@ class PrecisionCallback(Callback):
         self.precision_args = precision_args or [1, 3, 5]
 
     def on_batch_end(self, state):
-        prec = precision(
-            state.output[self.output_key],
-            state.input[self.input_key],
-            topk=self.precision_args)
-        for p, metric in zip(self.precision_args, prec):
-            key = "precision{:02}".format(p)
-            metric_ = metric.item()
-            state.batch_metrics[key] = metric_
+        pass
+        # prec = precision(
+        #     state.output[self.output_key],
+        #     state.input[self.input_key],
+        #     topk=self.precision_args)
+        # for p, metric in zip(self.precision_args, prec):
+        #     key = "precision{:02}".format(p)
+        #     metric_ = metric.item()
+        #     state.batch_metrics[key] = metric_
