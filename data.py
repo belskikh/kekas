@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -20,9 +22,4 @@ class DataKek(Dataset):
         return len(self.data)
 
 
-class DataOwner:
-    def __init__(self, trn_dl, val_dl, tst_dl=None):
-        # TODO: protect theese things from overwriting
-        self.trn_dl = trn_dl
-        self.val_dl = val_dl
-        self.tst_dl = tst_dl
+DataOwner = namedtuple('DataOwner', ['train_dl', 'val_dl', 'test_dl'])

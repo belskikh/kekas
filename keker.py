@@ -1,42 +1,76 @@
+from pdb import set_trace as st
+
+from functools import partial
+
 from tqdm import tqdm, tnrange
 
 import torch
-from torch.optim import Adam
+from torch.optim import SGD
+
+from .data import DataOwner
 
 class Keker:
     ''' The core class that proivdes main methods for training and
     predicting on given model and dataset
     '''
-    def __init__(self, model, train_dl, val_dl=None, test_dl=None,
-                 optimizer=None, criterion=None, metrics=None):
+    def __init__(self, model, dataowner,
+                 opt_fn=None, criterion=None, metrics=None, device=None):
+        assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
+
         self.model = model
-        self.train_dl = train_dl
-        self.val_dl = val_dl
-        self.test_dl = test_dl
-        self.optimizer = optimizer or Adam(1e-3)
+        self.dataowner = dataowner
+        self.opt_fn = opt_fn or partial(SGD)
         self.criterion = criterion
         self.metrics = metrics or []
+        self.device = device or torch.device("cuda" if
+                                             torch.cuda.is_available()
+                                             else "cpu")
 
-
-    def kek(self, lr, epochs, one_cycle=(10, 2, 0.95, 0.85), w_decay=10e-5,
-            sampler=None, stepper=None, callbacks=None):
-        if callbacks is None:
-            callbacks = []
+    def kek(self, lr, epochs):
         batch_num = 0
-        avg_loss = 0.
+
+        opt = self.opt_fn(params=self.model.parameters(), lr=lr)
+
+        self.model.to(self.device)  # TODO: move to init?
 
         for epoch in tnrange(epochs, desc='Epoch'):
-            dl_iter = tqdm(iter(self.train_dl), leave=False, total=len(self.train_dl), miniters=0)
+            train_dl_iter = tqdm(iter(self.dataowner.train_dl), leave=False,
+                           total=len(self.dataowner.train_dl), miniters=0)
 
-            for (*inp, target) in dl_iter:
-                batch_num += 1
-                for cb in callbacks:
-                    cb.on_batch_begin()
+            # TODO: batch hanlder
+            with torch.set_grad_enabled(True):
+                self.model.train()
+                for elem in train_dl_iter:
+                    batch_num += 1
+                    # st()
+                    inp = {k: v.to(self.device) for k, v in elem.items()}
+                    try:
+                        out = self.model(inp["image"])
+                    except:
+                        st()
 
-                loss = stepper.step(*inp, target)
+                    # TODO: loss to callback
+                    loss = self.criterion(out, inp["label"])
+                    loss.backward()
 
-                for cb in callbacks:
-                    cb.on_batch_end()
+                    # TODO: optimizer to callback
+                    opt.step()
+                    opt.zero_grad()
+
+                    # TODO: metrics to callback
+
+            val_dl_iter = iter(self.dataowner.val_dl)
+            for elem in val_dl_iter:
+                self.model.eval()
+                inp = {k: v.to(self.device) for k, v in elem.items()}
+                out = self.model(inp["image"])
+                loss = self.criterion(out, inp["label"])
+
+                metrics = []
+
+
+
+
 
 
     def lr_range_test(self, start_lr=1e-5, stop_lr=1e-2, n_iter=None, w_decay=None, linear=False,):
