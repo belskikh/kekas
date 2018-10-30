@@ -3,15 +3,15 @@ from pdb import set_trace as st
 from collections import defaultdict
 from functools import partial
 
-from tqdm import tqdm, tnrange
-
 import numpy as np
 import torch
 from torch.optim import SGD
 
 from .data import DataOwner
-from .utils import exp_weight_average, progress_bar_from_dl, to_numpy, \
-    update_epoch_metrics, extended_postfix
+from .utils import exp_weight_average, get_trainval_pbar, get_predict_pbar, \
+    to_numpy, update_epoch_metrics, extended_postfix
+from .state import State
+
 
 class Keker:
     ''' The core class that proivdes main methods for training and
@@ -27,21 +27,18 @@ class Keker:
         self.dataowner = dataowner
         self.opt_fn = opt_fn or partial(SGD)
         self.criterion = criterion
-        # TODO: get metrics as a list and transform it to dict
-        self.metrics = metrics or {}
+        self.metrics = metrics or []
         self.device = device or torch.device("cuda" if
                                              torch.cuda.is_available()
                                              else "cpu")
         self.callbacks = callbacks or []
-        self.state = {}
+        self.state = State()
         self.opt = None
 
     def kek(self, lr, epochs):
-        avg_loss = 0.0
-
         self.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
 
-        self.model.to(self.device)  # TODO: move to init?
+        self.model.to(self.device)
 
         # ON TRAIN BEGIN
         for cb in self.callbacks:
@@ -49,7 +46,7 @@ class Keker:
 
         for epoch in range(epochs):
 
-            pbar = progress_bar_from_dl(
+            pbar = get_trainval_pbar(
                 dataloader=self.dataowner.train_dl,
                 epoch=epoch,
                 epochs=epochs)
@@ -85,15 +82,15 @@ class Keker:
                 for cb in self.callbacks:
                     cb.on_batch_begin(i, is_train)
 
+                self.state = State()
                 batch = self.to_device(batch)
-                self.step(batch, is_train)
 
-                self.state["loss"] = self.criterion(
-                    self.state["out"],
-                    self.state["label"])
+                self.step(batch)
+
+                self.calc_loss(batch)
 
                 if is_train:
-                    loss = self.state["loss"]
+                    loss = self.state.loss
                     # update postfix
                     running_loss = exp_weight_average(loss, running_loss)
                     postfix = {"loss": f"{running_loss:.4f}"}
@@ -104,10 +101,10 @@ class Keker:
                     self.opt.step()
                     self.opt.zero_grad()
                 else:
-                    epoch_metrics["val_loss"] += to_numpy(self.state["loss"])
+                    epoch_metrics["val_loss"] += to_numpy(self.state.loss)
                     update_epoch_metrics(
-                        target=self.state["label"],
-                        preds=self.state["out"],
+                        target=self.state.target,
+                        preds=self.state.out,
                         metrics=self.metrics,
                         epoch_metrics=epoch_metrics
                     )
@@ -123,26 +120,31 @@ class Keker:
             # update pbar
             pbar.set_postfix_str(extended_postfix(pbar.postfix, epoch_metrics))
 
-
-
-    def step(self, batch, is_train):
+    def step(self, batch):
         inp = batch["image"]
-        label = batch["label"]
-
         out = self.model(inp)
-        loss = self.criterion(out, label)
 
-        self.state["inp"] = inp
-        self.state["label"] = label
-        self.state["out"] = out
+        self.state.update(inp=inp, out=out)
 
+    def calc_loss(self, batch):
+        target = batch["label"]
+        loss = self.criterion(self.state.out, target)
 
-    def lr_range_test(self, start_lr=1e-5, stop_lr=1e-2, n_iter=None, w_decay=None, linear=False,):
-        pass
+        self.state.update(target=target, loss=loss)
 
     def predict(self, dl=None):
-        dl = dl or self.test_dl
-        pass
+        dl = dl or self.dataowner.test_dl
+        pbar = get_predict_pbar(dl)
+        preds = []
+        with torch.set_grad_enabled(False):
+            self.model.eval()
+            for i, batch in enumerate(dl):
+                self.state = State()
+                batch = self.to_device(batch)
+                self.step(batch)
+                preds.append(to_numpy(self.state.out))
+                pbar.update()
+        return np.concatenate(preds)
 
     def TTA(self, n_aug=6):
         pass

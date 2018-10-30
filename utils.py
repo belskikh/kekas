@@ -11,12 +11,23 @@ def exp_weight_average(curr_val, prev_val, alpha=0.9, from_torch=True):
     return alpha * prev_val + (1 - alpha) * curr_val
 
 
-def progress_bar_from_dl(dataloader, epoch, epochs):
+def get_trainval_pbar(dataloader, epoch, epochs):
+
     pbar = tqdm(
         total=len(dataloader),
         leave=True,
         ncols=0,
         desc=f"Epoch {epoch+1}/{epochs}")
+
+    return pbar
+
+
+def get_predict_pbar(dataloader):
+    pbar = tqdm(
+        total=len(dataloader),
+        leave=True,
+        ncols=0,
+        desc="Predict")
 
     return pbar
 

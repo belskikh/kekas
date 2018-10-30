@@ -22,4 +22,4 @@ class DataKek(Dataset):
         return len(self.data)
 
 
-DataOwner = namedtuple('DataOwner', ['train_dl', 'val_dl', 'test_dl'])
+DataOwner = namedtuple("DataOwner", ["train_dl", "val_dl", "test_dl"])
