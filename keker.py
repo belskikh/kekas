@@ -2,11 +2,13 @@ from pdb import set_trace as st
 
 from collections import defaultdict
 from functools import partial
+from pathlib import Path
 
 import numpy as np
 import torch
 from torch.optim import SGD
 
+from .callbacks import Callbacks
 from .data import DataOwner
 from .utils import exp_weight_average, get_trainval_pbar, get_predict_pbar, \
     to_numpy, update_epoch_metrics, extended_postfix
@@ -31,18 +33,16 @@ class Keker:
         self.device = device or torch.device("cuda" if
                                              torch.cuda.is_available()
                                              else "cpu")
-        self.callbacks = callbacks or []
+        self.callbacks = Callbacks(callbacks) or None
         self.state = State()
-        self.opt = None
 
     def kek(self, lr, epochs):
-        self.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
+        opt = self.opt_fn(params=self.model.parameters(), lr=lr)
+        self.state.update(opt=opt)
 
         self.model.to(self.device)
 
-        # ON TRAIN BEGIN
-        for cb in self.callbacks:
-            cb.on_train_begin()
+        self.callbacks.on_train_begin()
 
         for epoch in range(epochs):
 
@@ -51,38 +51,27 @@ class Keker:
                 epoch=epoch,
                 epochs=epochs)
 
-            # ON EPOCH BEGIN
-            for cb in self.callbacks:
-                cb.on_epoch_begin(epoch)
-
             self.model.train()
-            self._run_epoch(epoch, self.dataowner.train_dl, pbar, is_train=True)
+            self.state.update(is_train=True)
+            self._run_epoch(epoch, self.dataowner.train_dl, pbar)
 
             self.model.eval()
-            self._run_epoch(epoch, self.dataowner.val_dl, pbar, is_train=False)
-
-            # ON EPOCH END
-            for cb in self.callbacks:
-                cb.on_epoch_end(epoch)
+            self.state.update(is_train=False)
+            self._run_epoch(epoch, self.dataowner.val_dl, pbar)
 
             pbar.close()
 
-        # ON TRAIN END
-        for cb in self.callbacks:
-            cb.on_train_end()
+        self.callbacks.on_train_end()
 
-        self.opt = None  # HACK to remove optimizer
-
-    def _run_epoch(self, epoch, loader, pbar, is_train):
+    def _run_epoch(self, epoch, loader, pbar):
+        self.callbacks.on_epoch_begin(epoch)
+        is_train = self.state.is_train
         running_loss = 0.0
         epoch_metrics = defaultdict(float)
         with torch.set_grad_enabled(is_train):
             for i, batch in enumerate(loader):
-                # ON BATCH BEGIN
-                for cb in self.callbacks:
-                    cb.on_batch_begin(i, is_train)
+                self.callbacks.on_batch_begin(i, self.state)
 
-                self.state = State()
                 batch = self.to_device(batch)
 
                 self.step(batch)
@@ -98,8 +87,9 @@ class Keker:
                     pbar.update()
 
                     loss.backward()
-                    self.opt.step()
-                    self.opt.zero_grad()
+
+                    self.state.opt.step()
+                    self.state.opt.zero_grad()
                 else:
                     epoch_metrics["val_loss"] += to_numpy(self.state.loss)
                     update_epoch_metrics(
@@ -109,9 +99,7 @@ class Keker:
                         epoch_metrics=epoch_metrics
                     )
 
-                # ON BATCH END
-                for cb in self.callbacks:
-                    cb.on_batch_end(i, is_train)
+                self.callbacks.on_batch_end(i, self.state)
 
             # average metrics
             for k, v in epoch_metrics.items():
@@ -119,6 +107,8 @@ class Keker:
 
             # update pbar
             pbar.set_postfix_str(extended_postfix(pbar.postfix, epoch_metrics))
+
+        self.callbacks.on_epoch_end(epoch, epoch_metrics)
 
     def step(self, batch):
         inp = batch["image"]
@@ -149,11 +139,13 @@ class Keker:
     def TTA(self, n_aug=6):
         pass
 
-    def save(self, path):
-        pass
+    def save(self, savepath):
+        savepath = Path(savepath)
+        savepath.parent.mkdir(exist_ok=True)
+        torch.save(self.model.state_dict(), savepath)
 
-    def load(self, weights):
-        pass
+    def load(self, loadpath):
+        self.model.load_state_dict(torch.load(loadpath))
 
     def to_device(self, batch):
         return {k: v.to(self.device) for k, v in batch.items()}

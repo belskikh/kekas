@@ -1,3 +1,5 @@
+from functools import reduce
+
 from tqdm import tqdm
 
 
@@ -42,3 +44,15 @@ def update_epoch_metrics(target, preds, metrics, epoch_metrics):
         value = m(target, preds)
         epoch_metrics[m.__name__] += value
 
+
+def get_opt_lr(opt):
+    # TODO: rewrite it for differentrial learning rates
+    lrs = [pg["lr"] for pg in opt.param_groups]
+    res = reduce(sum, lrs) / len(lrs)
+    return res
+
+
+class DotDict(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
