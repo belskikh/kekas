@@ -1,13 +1,20 @@
-class State:
-    def __init__(self, inp=None, out=None, target=None, loss=None, opt=None,
-                 is_train=None):
-        self.inp = inp
-        self.out = out
-        self.target = target
-        self.loss = loss
-        self.opt = opt
-        self.is_train = is_train
+from .utils import DotDict
+
+
+class State(DotDict):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.opt = None
+        self.mode = None
+        self.batch_report = {}
+        self.epoch_report = {}
 
     def update(self, **kwargs):
         for k, v in kwargs.items():
-            self.__dict__[k] = v
+            self[k] = v
+
+    def flash_batch_report(self):
+        self.batch_report = {}
+
+    def flash_epoch_report(self):
+        self.epoch_report = {}

@@ -34,11 +34,11 @@ class Keker:
                                              torch.cuda.is_available()
                                              else "cpu")
         self.callbacks = Callbacks(callbacks) or None
+        self.mode = None
         self.state = State()
 
     def kek(self, lr, epochs):
-        opt = self.opt_fn(params=self.model.parameters(), lr=lr)
-        self.state.update(opt=opt)
+        self.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
 
         self.model.to(self.device)
 
@@ -51,12 +51,10 @@ class Keker:
                 epoch=epoch,
                 epochs=epochs)
 
-            self.model.train()
-            self.state.update(is_train=True)
+            self.set_mode("train")
             self._run_epoch(epoch, self.dataowner.train_dl, pbar)
 
-            self.model.eval()
-            self.state.update(is_train=False)
+            self.set_mode("val")
             self._run_epoch(epoch, self.dataowner.val_dl, pbar)
 
             pbar.close()
@@ -76,20 +74,14 @@ class Keker:
 
                 self.step(batch)
 
-                self.calc_loss(batch)
-
                 if is_train:
                     loss = self.state.loss
+                    # epoch_metrics["trn_loss"] += to_numpy(self.state.loss)
                     # update postfix
                     running_loss = exp_weight_average(loss, running_loss)
                     postfix = {"loss": f"{running_loss:.4f}"}
                     pbar.set_postfix(postfix)
                     pbar.update()
-
-                    loss.backward()
-
-                    self.state.opt.step()
-                    self.state.opt.zero_grad()
                 else:
                     epoch_metrics["val_loss"] += to_numpy(self.state.loss)
                     update_epoch_metrics(
@@ -111,10 +103,26 @@ class Keker:
         self.callbacks.on_epoch_end(epoch, epoch_metrics)
 
     def step(self, batch):
+        report = {}
         inp = batch["image"]
         out = self.model(inp)
 
-        self.state.update(inp=inp, out=out)
+        if self.mode != "test":
+            target = batch["label"]
+            loss = self.criterion(self.state.out, target)
+            loss.backward()
+
+            self.opt.step()
+            self.opt.zero_grad()
+
+            report["target"] = target
+            report["loss"] = loss.data
+
+        report["inp"] = inp
+        report["out"] = out
+
+
+        return report
 
     def calc_loss(self, batch):
         target = batch["label"]
@@ -127,9 +135,8 @@ class Keker:
         pbar = get_predict_pbar(dl)
         preds = []
         with torch.set_grad_enabled(False):
-            self.model.eval()
+            self.set_mode("test")
             for i, batch in enumerate(dl):
-                self.state = State()
                 batch = self.to_device(batch)
                 self.step(batch)
                 preds.append(to_numpy(self.state.out))
@@ -149,3 +156,15 @@ class Keker:
 
     def to_device(self, batch):
         return {k: v.to(self.device) for k, v in batch.items()}
+
+    def set_mode(self, mode):
+        if mode == "train":
+            self.model.train()
+        else:
+            self.model.eval()
+        self.mode = mode
+
+    def update_pbar(self):
+        pass
+
+
