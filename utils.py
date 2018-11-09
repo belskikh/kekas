@@ -13,7 +13,7 @@ def exp_weight_average(curr_val, prev_val, alpha=0.9, from_torch=True):
     return alpha * prev_val + (1 - alpha) * curr_val
 
 
-def get_trainval_pbar(dataloader, epoch, epochs):
+def get_trainval_pbar(epoch, epochs, dataloader):
 
     pbar = tqdm(
         total=len(dataloader),
@@ -34,11 +34,11 @@ def get_predict_pbar(dataloader):
     return pbar
 
 
-def extended_postfix(postfix, dct):
+def extend_postfix(postfix, dct):
     postfixes = [postfix] + [f"{k}={v:.4f}" for k, v in dct.items()]
     return ", ".join(postfixes)
 
-
+# TODO: REMOVE
 def update_epoch_metrics(target, preds, metrics, epoch_metrics):
     for m in metrics:
         value = m(target, preds)

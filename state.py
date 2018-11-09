@@ -1,9 +1,8 @@
 from .utils import DotDict
 
 
-class State(DotDict):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class State:
+    def __init__(self):
         self.opt = None
         self.mode = None
         self.batch_report = {}

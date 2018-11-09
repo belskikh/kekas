@@ -1,25 +1,33 @@
 from pdb import set_trace as st
 
+from collections import defaultdict
 from pathlib import Path
 
 from tensorboardX import SummaryWriter
 
-from .utils import get_opt_lr
+from .utils import get_opt_lr, get_trainval_pbar, get_predict_pbar, \
+    exp_weight_average, extend_postfix, to_numpy
 
 class Callback:
     """
     Abstract base class used to build new callbacks.
     """
+    def __init__(self):
+        self.keker = None
+
+    def init(self, keker):
+        self.keker = keker
+
     def on_batch_begin(self, i, state):
         pass
 
     def on_batch_end(self, i, state):
         pass
 
-    def on_epoch_begin(self, epoch):
+    def on_epoch_begin(self, epoch, epochs, state):
         pass
 
-    def on_epoch_end(self, epoch, epoch_metrics):
+    def on_epoch_end(self, epoch, state):
         pass
 
     def on_train_begin(self):
@@ -30,11 +38,16 @@ class Callback:
 
 
 class Callbacks:
-    def __init__(self, callbacks):
+    def __init__(self, callbacks, keker):
         if isinstance(callbacks, Callbacks):
             self.callbacks = callbacks.callbacks
         if isinstance(callbacks, list):
             self.callbacks = callbacks
+        else:
+            self.callbacks = []
+
+        for cb in self.callbacks:
+            cb.init(keker)
 
     def on_batch_begin(self, i, state):
         for cb in self.callbacks:
@@ -44,13 +57,13 @@ class Callbacks:
         for cb in self.callbacks:
             cb.on_batch_end(i, state)
 
-    def on_epoch_begin(self, epoch):
+    def on_epoch_begin(self, epoch, epochs, state):
         for cb in self.callbacks:
-            cb.on_epoch_begin(epoch)
+            cb.on_epoch_begin(epoch, epochs, state)
 
-    def on_epoch_end(self, epoch, epoch_metrics):
+    def on_epoch_end(self, epoch, state):
         for cb in self.callbacks:
-            cb.on_epoch_end(epoch, epoch_metrics)
+            cb.on_epoch_end(epoch, state)
 
     def on_train_begin(self):
         for cb in self.callbacks:
@@ -65,6 +78,7 @@ class LRUpdater(Callback):
     """Basic class that all Lr updaters inherit from"""
 
     def __init__(self, init_lr):
+        super().__init__()
         self.init_lr = init_lr
 
     def calc_lr(self):
@@ -90,7 +104,7 @@ class LRUpdater(Callback):
         return new_momentum
 
     def on_batch_begin(self, i, state):
-        if state.is_train:
+        if state.mode == "train":
             self.update_lr(state.opt)
             self.update_momentum(state.opt)
 
@@ -201,7 +215,7 @@ class TBLogger(Callback):
         self.writer = SummaryWriter(self.log_dir)
 
     def on_batch_end(self, i, state):
-        if state.is_train:
+        if state.mode == "train":
             lr = get_opt_lr(state.opt)
             loss = state.loss.value
 
@@ -223,3 +237,80 @@ class TBLogger(Callback):
         self.writer.close()
 
 
+class SimpleLossCallback(Callback):
+    def __init__(self, target_key, preds_key):
+        super().__init__()
+        self.target_key = target_key
+        self.preds_key = preds_key
+
+    def on_batch_end(self, i, state):
+        target = state.batch[self.target_key]
+        preds = state.out[self.preds_key]
+
+        state.loss = state.criterion(preds, target)
+
+
+class SimpleOptimizerCallback(Callback):
+    def on_batch_end(self, i, state):
+        if state.mode == "train":
+            state.opt.zero_grad()
+            state.loss.backward()
+            state.opt.step()
+
+
+class ProgressBarCallback(Callback):
+    def __init__(self):
+        super().__init__()
+        self.pbar = None
+        self.running_loss = None
+
+    def on_epoch_begin(self, epoch, epochs, state):
+        loader = state.loader
+        if state.mode == "train":
+            self.pbar = get_trainval_pbar(epoch, epochs, loader)
+        elif state.mode == "test":
+            self.pbar = get_predict_pbar(loader)
+        self.running_loss = 0.0
+
+    def on_batch_end(self, i, state):
+        if state.mode == "train":
+            self.running_loss = exp_weight_average(state.loss,
+                                                   self.running_loss)
+            postfix = {"loss": f"{self.running_loss:.4f}"}
+            self.pbar.set_postfix(postfix)
+            self.pbar.update()
+
+    def on_epoch_end(self, epoch, state):
+        if state.mode != "train":
+            self.pbar.set_postfix_str(extend_postfix(self.pbar.postfix,
+                                                     state.epoch_metrics))
+            self.pbar.close()
+
+
+class MetricsCallback(Callback):
+    def __init__(self, metrics, target_key, preds_key):
+        super().__init__()
+        self.metrics = metrics
+        self.epoch_metrics = None
+        self.target_key = target_key
+        self.preds_key = preds_key
+
+    def update_epoch_metrics(self, target, preds):
+        for m in self.metrics:
+            value = m(target, preds)
+            self.epoch_metrics[m.__name__] += value
+
+    def on_epoch_begin(self, epoch, epochs, state):
+        self.epoch_metrics = defaultdict(float)
+
+    def on_batch_end(self, i, state):
+        if state.mode == "val":
+            self.epoch_metrics["val_loss"] += to_numpy(state.loss)
+
+    def on_epoch_end(self, epoch, state):
+        divider = len(state.loader)
+        for k in self.epoch_metrics.keys():
+            self.epoch_metrics[k] /= divider
+        self.update_epoch_metrics(target=state.batch[self.target_key],
+                                  preds=state.out[self.preds_key])
+        state.epoch_metrics = self.epoch_metrics
