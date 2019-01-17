@@ -3,6 +3,8 @@ from pdb import set_trace as st
 from collections import defaultdict
 from pathlib import Path
 
+import numpy as np
+
 from tensorboardX import SummaryWriter
 
 from .utils import get_opt_lr, get_trainval_pbar, get_predict_pbar, \
@@ -279,11 +281,15 @@ class ProgressBarCallback(Callback):
             postfix = {"loss": f"{self.running_loss:.4f}"}
             self.pbar.set_postfix(postfix)
             self.pbar.update()
+        elif state.mode == "test":
+            self.pbar.update()
 
     def on_epoch_end(self, epoch, state):
-        if state.mode != "train":
+        if state.mode == "val":
             self.pbar.set_postfix_str(extend_postfix(self.pbar.postfix,
                                                      state.epoch_metrics))
+            self.pbar.close()
+        elif state.mode == "test":
             self.pbar.close()
 
 
@@ -306,11 +312,28 @@ class MetricsCallback(Callback):
     def on_batch_end(self, i, state):
         if state.mode == "val":
             self.epoch_metrics["val_loss"] += to_numpy(state.loss)
+            self.update_epoch_metrics(target=state.batch[self.target_key],
+                                      preds=state.out[self.preds_key])
 
     def on_epoch_end(self, epoch, state):
         divider = len(state.loader)
         for k in self.epoch_metrics.keys():
             self.epoch_metrics[k] /= divider
-        self.update_epoch_metrics(target=state.batch[self.target_key],
-                                  preds=state.out[self.preds_key])
+
         state.epoch_metrics = self.epoch_metrics
+
+
+class PredictionsSaverCallback(Callback):
+    def __init__(self, savepath, preds_key):
+        super().__init__()
+        self.savepath = savepath
+        self.preds_key = preds_key
+        self.preds = []
+
+    def on_batch_end(self, i, state):
+        if state.mode == "test":
+            self.preds.append(to_numpy(state.out[self.preds_key]))
+
+    def on_epoch_end(self, epoch, state):
+        if state.mode == "test":
+            np.save(self.savepath, np.concatenate(self.preds))

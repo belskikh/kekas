@@ -55,8 +55,8 @@ class Keker:
 
     def _run_epoch(self, epoch, epochs):
         self.callbacks.on_epoch_begin(epoch, epochs, self.state)
-        is_train = self.is_train
-        with torch.set_grad_enabled(is_train):
+
+        with torch.set_grad_enabled(self.is_train):
             for i, batch in enumerate(self.state.loader):
                 self.callbacks.on_batch_begin(i, self.state)
 
@@ -73,16 +73,16 @@ class Keker:
 
         return {"logits": logits}
 
-    def predict(self):
-        preds = []
+    def predict_test(self):
+        self.set_mode("test")
         with torch.set_grad_enabled(False):
-            self.set_mode("test")
-            for i, batch in enumerate(dl):
-                batch = self.to_device(batch)
-                self.step()
-                preds.append(to_numpy(self.state.out))
-                pbar.update()
-        return np.concatenate(preds)
+            self._run_epoch(1, 1)
+
+    def predict_loader(self, loader):
+        self.state.loader = loader
+        self.model.eval()
+        with torch.set_grad_enabled(False):
+            self._run_epoch(1, 1)
 
     def TTA(self, n_aug=6):
         pass
@@ -114,8 +114,3 @@ class Keker:
     @property
     def is_train(self):
         return self.state.mode == "train"
-
-    def update_pbar(self):
-        pass
-
-
