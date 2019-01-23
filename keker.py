@@ -10,7 +10,7 @@ from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback
 from .data import DataOwner
-from .utils import exp_weight_average, get_trainval_pbar, get_predict_pbar, \
+from .utils import exp_weight_average, get_pbar, \
     to_numpy, update_epoch_metrics, extend_postfix, DotDict
 from .state import State
 
@@ -65,6 +65,7 @@ class Keker:
                 self.state.out = self.step()
 
                 self.callbacks.on_batch_end(i, self.state)
+
         self.callbacks.on_epoch_end(epoch, self.state)
 
     def step(self):

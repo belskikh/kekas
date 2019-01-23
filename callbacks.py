@@ -7,7 +7,7 @@ import numpy as np
 
 from tensorboardX import SummaryWriter
 
-from .utils import get_opt_lr, get_trainval_pbar, get_predict_pbar, \
+from .utils import get_opt_lr, get_pbar, \
     exp_weight_average, extend_postfix, to_numpy
 
 class Callback:
@@ -269,9 +269,11 @@ class ProgressBarCallback(Callback):
     def on_epoch_begin(self, epoch, epochs, state):
         loader = state.loader
         if state.mode == "train":
-            self.pbar = get_trainval_pbar(epoch, epochs, loader)
+            description = f"Epoch {epoch+1}/{epochs}"
+            self.pbar = get_pbar(loader, description)
         elif state.mode == "test":
-            self.pbar = get_predict_pbar(loader)
+            description = "Predict"
+            self.pbar = get_pbar(loader, description)
         self.running_loss = 0.0
 
     def on_batch_end(self, i, state):
@@ -286,8 +288,9 @@ class ProgressBarCallback(Callback):
 
     def on_epoch_end(self, epoch, state):
         if state.mode == "val":
+            metrics = state.get("epoch_metrics", {})
             self.pbar.set_postfix_str(extend_postfix(self.pbar.postfix,
-                                                     state.epoch_metrics))
+                                                     metrics))
             self.pbar.close()
         elif state.mode == "test":
             self.pbar.close()
