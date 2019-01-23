@@ -297,6 +297,7 @@ class ProgressBarCallback(Callback):
 
 
 class MetricsCallback(Callback):
+    # TODO: split loss and metrics
     def __init__(self, metrics, target_key, preds_key):
         super().__init__()
         self.metrics = metrics
