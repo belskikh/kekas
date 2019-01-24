@@ -10,6 +10,7 @@ from tensorboardX import SummaryWriter
 from .utils import get_opt_lr, get_pbar, \
     exp_weight_average, extend_postfix, to_numpy
 
+
 class Callback:
     """
     Abstract base class used to build new callbacks.
@@ -207,6 +208,7 @@ class LRFinder(LRUpdater):
 
 
 class TBLogger(Callback):
+    # TODO: outdated, fix it
     def __init__(self, log_dir):
         super().__init__()
         self.log_dir = log_dir
@@ -261,6 +263,8 @@ class SimpleOptimizerCallback(Callback):
 
 
 class ProgressBarCallback(Callback):
+    # TODO: change mode settings 'test' -> 'predict'
+    # to make possible predicting on loader
     def __init__(self):
         super().__init__()
         self.pbar = None
