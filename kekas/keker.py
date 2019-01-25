@@ -11,9 +11,10 @@ from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback
 from .data import DataOwner
-from .utils import exp_weight_average, get_pbar, \
-    to_numpy, update_epoch_metrics, extend_postfix, DotDict
-from .state import State
+from .parallel import DataParallelCriterion, DataParallelModel
+from .utils import DotDict
+
+
 
 
 class Keker:
@@ -26,7 +27,14 @@ class Keker:
                  callbacks=None):
         assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
 
-        self.model = nn.DataParallel(model)
+        self.state = DotDict()
+
+        self.model = model
+        self.state.criterion = criterion
+        if torch.cuda.device_count() > 1:
+            self.model = DataParallelModel(self.model)
+            self.state.criterion = DataParallelCriterion(self.state.criterion)
+
         self.dataowner = dataowner
         self.opt_fn = opt_fn or partial(SGD)
         self.device = device or torch.device("cuda" if
@@ -35,8 +43,7 @@ class Keker:
         callbacks = callbacks + [SimpleOptimizerCallback(),
                                  ProgressBarCallback()]
         self.callbacks = Callbacks(callbacks, self)
-        self.state = DotDict()
-        self.state.criterion = criterion
+
 
     def kek(self, lr, epochs):
         self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)

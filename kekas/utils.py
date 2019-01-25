@@ -12,7 +12,7 @@ def to_numpy(data):
 def exp_weight_average(curr_val, prev_val, alpha=0.9, from_torch=True):
     if from_torch:
         curr_val = to_numpy(curr_val)
-    return alpha * prev_val + (1 - alpha) * curr_val
+    return float(alpha * prev_val + (1 - alpha) * curr_val)
 
 
 def get_pbar(dataloader, description):

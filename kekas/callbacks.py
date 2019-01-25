@@ -278,10 +278,13 @@ class ProgressBarCallback(Callback):
         elif state.mode == "test":
             description = "Predict"
             self.pbar = get_pbar(loader, description)
-        self.running_loss = 0.0
 
     def on_batch_end(self, i, state):
+
         if state.mode == "train":
+            if not self.running_loss:
+                self.running_loss = to_numpy(state.loss)
+
             self.running_loss = exp_weight_average(state.loss,
                                                    self.running_loss)
             postfix = {"loss": f"{self.running_loss:.4f}"}
@@ -319,7 +322,7 @@ class MetricsCallback(Callback):
 
     def on_batch_end(self, i, state):
         if state.mode == "val":
-            self.epoch_metrics["val_loss"] += to_numpy(state.loss)
+            self.epoch_metrics["val_loss"] += float(to_numpy(state.loss))  # TODO: fixme ugly
             self.update_epoch_metrics(target=state.batch[self.target_key],
                                       preds=state.out[self.preds_key])
 
@@ -340,7 +343,11 @@ class PredictionsSaverCallback(Callback):
 
     def on_batch_end(self, i, state):
         if state.mode == "test":
-            self.preds.append(to_numpy(state.out[self.preds_key]))
+            out = state.out[self.preds_key]
+            # DataParallelModel workaround
+            if isinstance(out, list):
+                out = np.concatenate([to_numpy(o) for o in out])
+            self.preds.append(out)
 
     def on_epoch_end(self, epoch, state):
         if state.mode == "test":
