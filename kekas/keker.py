@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback
@@ -25,7 +26,7 @@ class Keker:
                  callbacks=None):
         assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
 
-        self.model = model
+        self.model = nn.DataParallel(model)
         self.dataowner = dataowner
         self.opt_fn = opt_fn or partial(SGD)
         self.device = device or torch.device("cuda" if
@@ -74,16 +75,20 @@ class Keker:
 
         return {"logits": logits}
 
-    def predict_test(self):
+    def predict(self):
         self.set_mode("test")
         with torch.set_grad_enabled(False):
             self._run_epoch(1, 1)
 
     def predict_loader(self, loader):
+        self.state.mode = "test"
         self.state.loader = loader
         self.model.eval()
         with torch.set_grad_enabled(False):
             self._run_epoch(1, 1)
+
+    def predict_array(self, array):
+        pass
 
     def TTA(self, n_aug=6):
         pass
