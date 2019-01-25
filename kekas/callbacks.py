@@ -345,3 +345,4 @@ class PredictionsSaverCallback(Callback):
     def on_epoch_end(self, epoch, state):
         if state.mode == "test":
             np.save(self.savepath, np.concatenate(self.preds))
+            self.preds = []
