@@ -16,7 +16,7 @@ class Callback:
     Abstract base class used to build new callbacks.
     """
     def __init__(self):
-        self.keker = None
+        self.keker = None  # TODO: check if it is still needed
 
     def init(self, keker):
         self.keker = keker

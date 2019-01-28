@@ -9,12 +9,11 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD
 
-from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback
+from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
+    PredictionsSaverCallback
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict
-
-
 
 
 class Keker:
@@ -43,7 +42,6 @@ class Keker:
         callbacks = callbacks + [SimpleOptimizerCallback(),
                                  ProgressBarCallback()]
         self.callbacks = Callbacks(callbacks, self)
-
 
     def kek(self, lr, epochs):
         self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
@@ -87,12 +85,22 @@ class Keker:
         with torch.set_grad_enabled(False):
             self._run_epoch(1, 1)
 
-    def predict_loader(self, loader):
+    def predict_loader(self, loader, savepath, preds_key):
+        callbacks = self.callbacks
+
+        tmp_callbacks = Callbacks([ProgressBarCallback(),
+                                   PredictionsSaverCallback(savepath, preds_key)],
+                                  keker=self)
+
+        self.callbacks = tmp_callbacks
+
         self.state.mode = "test"
         self.state.loader = loader
         self.model.eval()
         with torch.set_grad_enabled(False):
             self._run_epoch(1, 1)
+
+        self.callbacks = callbacks
 
     def predict_array(self, array):
         pass
@@ -104,9 +112,11 @@ class Keker:
         savepath = Path(savepath)
         savepath.parent.mkdir(exist_ok=True)
         torch.save(self.model.state_dict(), savepath)
+        print(f"Weights saved to {savepath}")
 
     def load(self, loadpath):
         self.model.load_state_dict(torch.load(loadpath))
+        print(f"Weights loaded from {loadpath}")
 
     def to_device(self, batch):
         return {k: v.to(self.device) for k, v in batch.items()
