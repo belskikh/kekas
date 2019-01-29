@@ -117,7 +117,14 @@ class Keker:
         print(f"Weights saved to {savepath}")
 
     def load(self, loadpath):
-        self.model.load_state_dict(torch.load(loadpath))
+        # TODO: find more elegant fix
+        checkpoint = torch.load(loadpath,
+                                map_location=lambda storage, loc: storage)
+        if not isinstance(self.model, DataParallelModel) \
+                and "module." in list(checkpoint.keys())[0]:
+            # [7:] is to skip 'module.' in group name
+            checkpoint = {k[7:]: v for k, v in checkpoint.items()}
+        self.model.load_state_dict(checkpoint)
         print(f"Weights loaded from {loadpath}")
 
     def to_device(self, batch):
