@@ -39,14 +39,13 @@ class Keker:
         self.device = device or torch.device("cuda" if
                                              torch.cuda.is_available()
                                              else "cpu")
+        self.model.to(self.device)
         callbacks = callbacks + [SimpleOptimizerCallback(),
                                  ProgressBarCallback()]
         self.callbacks = Callbacks(callbacks, self)
 
     def kek(self, lr, epochs):
         self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
-
-        self.model.to(self.device)
 
         self.callbacks.on_train_begin()
 
@@ -103,7 +102,10 @@ class Keker:
         self.callbacks = callbacks
 
     def predict_array(self, array):
-        pass
+        array = torch.from_numpy(array).to(self.device)
+        with torch.set_grad_enabled(False):
+            preds = self.model(array)
+        return preds
 
     def TTA(self, n_aug=6):
         pass
