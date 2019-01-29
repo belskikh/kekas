@@ -23,7 +23,7 @@ class Keker:
     def __init__(self, model, dataowner,
                  opt_fn=None, criterion=None,
                  device=None,
-                 callbacks=None):
+                 callbacks=[]):
         assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
 
         self.state = DotDict()
