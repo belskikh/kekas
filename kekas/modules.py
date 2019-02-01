@@ -1,6 +1,20 @@
+from typing import Optional
+
+import torch
 from torch import nn
 
 
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size()[0], -1)
+
+
+# https://github.com/fastai/fastai/blob/e8c855ac70d9d1968413a75c7e9a0f149d28cab3/fastai/layers.py#L171
+class AdaptiveConcatPool2d(nn.Module):
+    "Layer that concats `AdaptiveAvgPool2d` and `AdaptiveMaxPool2d`."
+    def __init__(self, sz:Optional[int]=None):
+        "Output will be 2*sz or 2 if sz is None"
+        super().__init__()
+        sz = sz or 1
+        self.ap,self.mp = nn.AdaptiveAvgPool2d(sz), nn.AdaptiveMaxPool2d(sz)
+    def forward(self, x): return torch.cat([self.mp(x), self.ap(x)], 1)
