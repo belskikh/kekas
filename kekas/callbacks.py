@@ -200,10 +200,17 @@ class LRFinder(LRUpdater):
 
 
 class TBLogger(Callback):
-    # TODO: outdated, fix it
     def __init__(self, log_dir):
         self.log_dir = log_dir
         self.writer = None
+        self.train_iter = 0
+        self.val_iter = 0
+
+    def update_total_iter(self, mode):
+        if mode == "train":
+            self.train_iter += 1
+        if mode == "val":
+            self.val_iter += 1
 
     def on_train_begin(self):
         Path(self.log_dir).mkdir(exist_ok=True)
@@ -211,22 +218,23 @@ class TBLogger(Callback):
 
     def on_batch_end(self, i, state):
         if state.mode == "train":
+            self.update_total_iter("train")
+            for name, metric in state.metrics["train"].items():
+                self.writer.add_scalar(f"train/{name}",
+                                       float(metric),
+                                       global_step=self.train_iter)
+
             lr = get_opt_lr(state.opt)
-            loss = state.loss.value
+            self.writer.add_scalar("train/lr",
+                                   float(lr),
+                                   global_step=self.train_iter)
 
-            self.writer.add_scalar(f"")
-
-    def on_epoch_end(self, epoch, epoch_metrics):
-
-        for k, v in self.metrics.train_metrics.items():
-            self.writer.add_scalar(f'train/{k}', float(v), global_step=epoch)
-
-        for k, v in self.metrics.val_metrics.items():
-            self.writer.add_scalar(f'val/{k}', float(v), global_step=epoch)
-
-        for idx, param_group in enumerate(self.runner.optimizer.param_groups):
-            lr = param_group['lr']
-            self.writer.add_scalar(f'group{idx}/lr', float(lr), global_step=epoch)
+        elif state.mode == "val":
+            self.update_total_iter("val")
+            for name, metric in state.metrics["val"].items():
+                self.writer.add_scalar(f"val/{name}",
+                                       float(metric),
+                                       global_step=self.val_iter)
 
     def on_train_end(self):
         self.writer.close()
@@ -254,8 +262,6 @@ class SimpleOptimizerCallback(Callback):
 
 
 class ProgressBarCallback(Callback):
-    # TODO: change mode settings 'test' -> 'predict'
-    # to make possible predicting on loader
     def __init__(self):
         super().__init__()
         self.pbar = None
@@ -286,7 +292,7 @@ class ProgressBarCallback(Callback):
 
     def on_epoch_end(self, epoch, state):
         if state.mode == "val":
-            metrics = state.get("epoch_metrics", {})
+            metrics = state.get("pbar_metrics", {})
             self.pbar.set_postfix_str(extend_postfix(self.pbar.postfix,
                                                      metrics))
             self.pbar.close()
@@ -297,29 +303,36 @@ class ProgressBarCallback(Callback):
 class MetricsCallback(Callback):
     def __init__(self, target_key, preds_key, metrics=None):
         self.metrics = metrics or {}
-        self.epoch_metrics = None
+        self.pbar_metrics = None
         self.target_key = target_key
         self.preds_key = preds_key
 
     def update_epoch_metrics(self, target, preds):
         for name, m in self.metrics.items():
             value = m(target, preds)
-            self.epoch_metrics[name] += value
+            self.pbar_metrics[name] += value
 
     def on_epoch_begin(self, epoch, epochs, state):
-        self.epoch_metrics = defaultdict(float)
+        self.pbar_metrics = defaultdict(float)
 
     def on_batch_end(self, i, state):
         if state.mode == "val":
-            self.epoch_metrics["val_loss"] += float(to_numpy(state.loss))
+            self.pbar_metrics["val_loss"] += float(to_numpy(state.loss))
             self.update_epoch_metrics(target=state.batch[self.target_key],
                                       preds=state.out[self.preds_key])
+        # tb logs
+        if state.mode != "test" and state.do_log:
+            state.metrics[state.mode]["loss"] = float(to_numpy(state.loss))
+            for name, m in self.metrics.items():
+                value = m(target=state.batch[self.target_key],
+                          preds=state.out[self.preds_key])
+                state.metrics[state.mode][name] = value
 
     def on_epoch_end(self, epoch, state):
         divider = len(state.loader)
-        for k in self.epoch_metrics.keys():
-            self.epoch_metrics[k] /= divider
-        state.epoch_metrics = self.epoch_metrics
+        for k in self.pbar_metrics.keys():
+            self.pbar_metrics[k] /= divider
+        state.epoch_metrics = self.pbar_metrics
 
 
 class PredictionsSaverCallback(Callback):

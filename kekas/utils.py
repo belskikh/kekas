@@ -31,11 +31,11 @@ def extend_postfix(postfix, dct):
     postfixes = [postfix] + [f"{k}={v:.4f}" for k, v in dct.items()]
     return ", ".join(postfixes)
 
-# TODO: REMOVE
-def update_epoch_metrics(target, preds, metrics, epoch_metrics):
-    for m in metrics:
-        value = m(target, preds)
-        epoch_metrics[m.__name__] += value
+# # TODO: REMOVE
+# def update_epoch_metrics(target, preds, metrics, epoch_metrics):
+#     for m in metrics:
+#         value = m(target, preds)
+#         epoch_metrics[m.__name__] += value
 
 
 def get_opt_lr(opt):

@@ -12,7 +12,8 @@ import torch.nn as nn
 from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
-    PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback
+    PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
+    TBLogger
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict
@@ -28,7 +29,7 @@ class Keker:
                  opt_fn=None, criterion=None,
                  device=None, step_fn=None,
                  loss_cb=None, opt_cb=None, callbacks=None,
-                 early_stop=None):
+                 early_stop=None, tb_logdir=None):
         assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
 
         self.state = DotDict()
@@ -61,6 +62,11 @@ class Keker:
                                        metrics_cb,
                                        opt_cb,
                                        ProgressBarCallback()]
+        if tb_logdir:
+            self.state.do_log = True
+            self.state.metrics = defaultdict(dict)
+            callbacks += [TBLogger(tb_logdir)]
+
         self.callbacks = Callbacks(callbacks)
 
         self.early_stop = early_stop
