@@ -42,7 +42,7 @@ class Keker:
         self.model.to(self.device)
         callbacks = callbacks + [SimpleOptimizerCallback(),
                                  ProgressBarCallback()]
-        self.callbacks = Callbacks(callbacks, self)
+        self.callbacks = Callbacks(callbacks)
 
     def kek(self, lr, epochs):
         self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
@@ -88,8 +88,7 @@ class Keker:
         callbacks = self.callbacks
 
         tmp_callbacks = Callbacks([ProgressBarCallback(),
-                                   PredictionsSaverCallback(savepath, preds_key)],
-                                  keker=self)
+                                   PredictionsSaverCallback(savepath, preds_key)])
 
         self.callbacks = tmp_callbacks
 

@@ -15,12 +15,6 @@ class Callback:
     """
     Abstract base class used to build new callbacks.
     """
-    def __init__(self):
-        self.keker = None  # TODO: check if it is still needed
-
-    def init(self, keker):
-        self.keker = keker
-
     def on_batch_begin(self, i, state):
         pass
 
@@ -41,16 +35,13 @@ class Callback:
 
 
 class Callbacks:
-    def __init__(self, callbacks, keker):
+    def __init__(self, callbacks):
         if isinstance(callbacks, Callbacks):
             self.callbacks = callbacks.callbacks
         if isinstance(callbacks, list):
             self.callbacks = callbacks
         else:
             self.callbacks = []
-
-        for cb in self.callbacks:
-            cb.init(keker)
 
     def on_batch_begin(self, i, state):
         for cb in self.callbacks:
