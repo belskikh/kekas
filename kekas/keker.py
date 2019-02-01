@@ -4,13 +4,15 @@ from collections import defaultdict
 from functools import partial
 from pathlib import Path
 
+from typing import List, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
-    PredictionsSaverCallback
+    PredictionsSaverCallback, OneCycleLR
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict
@@ -22,7 +24,7 @@ class Keker:
     '''
     def __init__(self, model, dataowner,
                  opt_fn=None, criterion=None,
-                 device=None,
+                 device=None, step_fn=None,
                  callbacks=[]):
         assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
 
@@ -40,6 +42,9 @@ class Keker:
                                              torch.cuda.is_available()
                                              else "cpu")
         self.model.to(self.device)
+
+        self.step = step_fn or self.default_step
+
         callbacks = callbacks + [SimpleOptimizerCallback(),
                                  ProgressBarCallback()]
         self.callbacks = Callbacks(callbacks)
@@ -58,6 +63,27 @@ class Keker:
 
         self.callbacks.on_train_end()
 
+    def kek_one_cycle(self,
+                      max_lr: float,
+                      cycle_len: int,
+                      momentum_range: Tuple[float, float]=(0.95, 0.85),
+                      div_factor: float=25,
+                      increase_fraction: float=0.3) -> None:
+
+        callbacks = self.callbacks
+
+        # temporarily add OneCycle callback
+        len_loader = len(self.dataowner.train_dl)
+        one_cycle_clb = OneCycleLR(max_lr, cycle_len, len_loader,
+                                   momentum_range, div_factor, increase_fraction)
+
+        self.callbacks = Callbacks(callbacks.callbacks + [one_cycle_clb])
+
+        self.kek(lr=max_lr, epochs=cycle_len)
+
+        # set old callbacks without OneCycle
+        self.callbacks = callbacks
+
     def _run_epoch(self, epoch, epochs):
         self.callbacks.on_epoch_begin(epoch, epochs, self.state)
 
@@ -73,7 +99,7 @@ class Keker:
 
         self.callbacks.on_epoch_end(epoch, self.state)
 
-    def step(self):
+    def default_step(self):
         inp = self.state.batch["image"]
         logits = self.model(inp)
 
@@ -107,6 +133,7 @@ class Keker:
         return preds
 
     def TTA(self, n_aug=6):
+        # TODO: move to utils
         pass
 
     def save(self, savepath):

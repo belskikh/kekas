@@ -3,6 +3,8 @@ from pdb import set_trace as st
 from collections import defaultdict
 from pathlib import Path
 
+from typing import Tuple
+
 import numpy as np
 
 from tensorboardX import SummaryWriter
@@ -72,7 +74,6 @@ class LRUpdater(Callback):
     """Basic class that all Lr updaters inherit from"""
 
     def __init__(self, init_lr):
-        super().__init__()
         self.init_lr = init_lr
 
     def calc_lr(self):
@@ -108,57 +109,57 @@ class OneCycleLR(LRUpdater):
     An learning rate updater
         that implements the CircularLearningRate (CLR) scheme.
     Learning rate is increased then decreased linearly.
-    https://github.com/Scitator/pytorch-common/blob/master/train/callbacks.py
+    Inspired by
+    https://github.com/fastai/fastai/blob/master/fastai/callbacks/one_cycle.py
     """
-
-    def __init__(self, init_lr, cycle_len, div, cut_div, momentum_range, len_loader):
-        """
-        :param init_lr: init learning rate for torch optimizer
-        :param cycle_len: (int) num epochs to apply one cycle policy
-        :param div: (int) ratio between initial lr and maximum lr
-        :param cut_div: (int) which part of cycle lr will grow
-            (Ex: cut_div=4 -> 1/4 lr grow, 3/4 lr decrease
-        :param momentum_range: (tuple(int, int)) max and min momentum values
-        """
-        super().__init__(init_lr)
+    def __init__(self,
+                 max_lr: float,
+                 cycle_len: int,
+                 len_loader: int,
+                 momentum_range: Tuple[float, float],
+                 div_factor: float,
+                 increase_fraction: float) -> None:
+        super().__init__(max_lr)
+        self.cycle_len = cycle_len
+        self.momentum_range = momentum_range
+        self.div_factor = div_factor
+        self.increase_fraction = increase_fraction
         self.len_loader = len_loader
         self.total_iter = None
-        self.div = div
-        self.cut_div = cut_div
         self.cycle_iter = 0
-        self.cycle_count = 0
-        self.cycle_len = cycle_len
         # point in iterations for starting lr decreasing
         self.cut_point = None
-        self.momentum_range = momentum_range
+
+    def on_train_begin(self):
+        self.total_iter = self.len_loader * self.cycle_len
+        self.cut_point = int(self.total_iter * self.increase_fraction)
 
     def calc_lr(self):
         # calculate percent for learning rate change
-        if self.cycle_iter > self.cut_point:
+        if self.cycle_iter <= self.cut_point:
+            percent = self.cycle_iter / self.cut_point
+
+        else:
             percent = 1 - (self.cycle_iter - self.cut_point) / (
                     self.total_iter - self.cut_point)
-        else:
-            percent = self.cycle_iter / self.cut_point
-        res = self.init_lr * (1 + percent * (self.div - 1)) / self.div
 
-        self.cycle_iter += 1
-        if self.cycle_iter == self.total_iter:
-            self.cycle_iter = 0
-            self.cycle_count += 1
+        res = self.init_lr * (1 + percent * (self.div_factor - 1)) / self.div_factor
+
         return res
 
     def calc_momentum(self):
-        if self.cycle_iter > self.cut_point:
-            percent = (self.cycle_iter - self.cut_point) / (self.total_iter - self.cut_point)
-        else:
+        if self.cycle_iter <= self.cut_point:
             percent = 1 - self.cycle_iter / self.cut_point
+
+        else:
+            percent = (self.cycle_iter - self.cut_point) / (self.total_iter - self.cut_point)
         res = self.momentum_range[1] + percent * (
                 self.momentum_range[0] - self.momentum_range[1])
         return res
 
-    def on_train_begin(self):
-        self.total_iter = self.len_loader * self.cycle_len
-        self.cut_point = self.total_iter // self.cut_div
+    def on_batch_begin(self, i, state):
+        super().on_batch_begin(i, state)
+        self.cycle_iter += 1
 
 
 class LRFinder(LRUpdater):
