@@ -13,7 +13,7 @@ from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
     PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
-    TBLogger
+    TBLogger, LRFinder
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict
@@ -58,20 +58,23 @@ class Keker:
         opt_cb = opt_cb or SimpleOptimizerCallback()
         metrics_cb = MetricsCallback(target_key, preds_key, metrics)
 
-        callbacks = callbacks or [] + [loss_cb,
-                                       metrics_cb,
-                                       opt_cb,
-                                       ProgressBarCallback()]
+        self.core_callbacks = callbacks or [] + [loss_cb,
+                                                 metrics_cb,
+                                                 opt_cb,
+                                                 ProgressBarCallback()]
+        callbacks = self.core_callbacks[:]
+
         if tb_logdir:
             self.state.do_log = True
             self.state.metrics = defaultdict(dict)
             callbacks += [TBLogger(tb_logdir)]
+            self.tb_logdir = tb_logdir
 
         self.callbacks = Callbacks(callbacks)
 
         self.early_stop = early_stop
 
-    def kek(self, lr, epochs):
+    def kek(self, lr, epochs, skip_val=False):
         self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
 
         self.callbacks.on_train_begin()
@@ -80,8 +83,9 @@ class Keker:
             self.set_mode("train")
             self._run_epoch(epoch, epochs)
 
-            self.set_mode("val")
-            self._run_epoch(epoch, epochs)
+            if not skip_val:
+                self.set_mode("val")
+                self._run_epoch(epoch, epochs)
 
         self.callbacks.on_train_end()
 
@@ -105,6 +109,32 @@ class Keker:
 
         # set old callbacks without OneCycle
         self.callbacks = callbacks
+
+    def kek_lr(self,
+               final_lr,
+               init_lr: float=1e-6,
+               n_steps: int=None,
+               logdir: str=None):
+
+        logdir = logdir or Path(self.tb_logdir) / "lr_find"
+        tmp_path = Path(logdir) / "tmp"
+        self.save(str(tmp_path) + "/tmp.h5")
+
+        callbacks = self.callbacks
+
+        try:
+            # temporarily add Logger and LRFinder callback
+            tblogger_cb = TBLogger(str(logdir))
+            lrfinder_cb = LRFinder(final_lr, init_lr, n_steps)
+
+            self.callbacks = Callbacks(self.core_callbacks + [tblogger_cb,
+                                                              lrfinder_cb])
+
+            self.kek(lr=init_lr, epochs=1, skip_val=True)
+        finally:
+            # set old callbacks without LRFinder
+            self.callbacks = callbacks
+            self.load(str(tmp_path) + "/tmp.h5")
 
     def _run_epoch(self, epoch, epochs):
         self.callbacks.on_epoch_begin(epoch, epochs, self.state)
