@@ -202,7 +202,6 @@ class LRFinder(LRUpdater):
 class TBLogger(Callback):
     # TODO: outdated, fix it
     def __init__(self, log_dir):
-        super().__init__()
         self.log_dir = log_dir
         self.writer = None
 
@@ -296,25 +295,23 @@ class ProgressBarCallback(Callback):
 
 
 class MetricsCallback(Callback):
-    # TODO: split loss and metrics
-    def __init__(self, metrics, target_key, preds_key):
-        super().__init__()
-        self.metrics = metrics
+    def __init__(self, target_key, preds_key, metrics=None):
+        self.metrics = metrics or {}
         self.epoch_metrics = None
         self.target_key = target_key
         self.preds_key = preds_key
 
     def update_epoch_metrics(self, target, preds):
-        for m in self.metrics:
+        for name, m in self.metrics.items():
             value = m(target, preds)
-            self.epoch_metrics[m.__name__] += value
+            self.epoch_metrics[name] += value
 
     def on_epoch_begin(self, epoch, epochs, state):
         self.epoch_metrics = defaultdict(float)
 
     def on_batch_end(self, i, state):
         if state.mode == "val":
-            self.epoch_metrics["val_loss"] += float(to_numpy(state.loss))  # TODO: fixme ugly
+            self.epoch_metrics["val_loss"] += float(to_numpy(state.loss))
             self.update_epoch_metrics(target=state.batch[self.target_key],
                                       preds=state.out[self.preds_key])
 
@@ -322,7 +319,6 @@ class MetricsCallback(Callback):
         divider = len(state.loader)
         for k in self.epoch_metrics.keys():
             self.epoch_metrics[k] /= divider
-
         state.epoch_metrics = self.epoch_metrics
 
 

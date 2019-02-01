@@ -12,7 +12,7 @@ import torch.nn as nn
 from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
-    PredictionsSaverCallback, OneCycleLR
+    PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict
@@ -23,15 +23,23 @@ class Keker:
     predicting on given model and dataset
     '''
     def __init__(self, model, dataowner,
+                 target_key="label", preds_key="logits",
+                 metrics=None,
                  opt_fn=None, criterion=None,
                  device=None, step_fn=None,
-                 callbacks=[]):
+                 loss_cb=None, opt_cb=None, callbacks=None,
+                 early_stop=None):
         assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
 
         self.state = DotDict()
 
         self.model = model
+
+        self.target_key = target_key
+        self.preds_key = preds_key
+
         self.state.criterion = criterion
+
         if torch.cuda.device_count() > 1:
             self.model = DataParallelModel(self.model)
             self.state.criterion = DataParallelCriterion(self.state.criterion)
@@ -45,9 +53,17 @@ class Keker:
 
         self.step = step_fn or self.default_step
 
-        callbacks = callbacks + [SimpleOptimizerCallback(),
-                                 ProgressBarCallback()]
+        loss_cb = loss_cb or SimpleLossCallback(target_key, preds_key)
+        opt_cb = opt_cb or SimpleOptimizerCallback()
+        metrics_cb = MetricsCallback(target_key, preds_key, metrics)
+
+        callbacks = callbacks or [] + [loss_cb,
+                                       metrics_cb,
+                                       opt_cb,
+                                       ProgressBarCallback()]
         self.callbacks = Callbacks(callbacks)
+
+        self.early_stop = early_stop
 
     def kek(self, lr, epochs):
         self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
@@ -74,10 +90,10 @@ class Keker:
 
         # temporarily add OneCycle callback
         len_loader = len(self.dataowner.train_dl)
-        one_cycle_clb = OneCycleLR(max_lr, cycle_len, len_loader,
-                                   momentum_range, div_factor, increase_fraction)
+        one_cycle_cb = OneCycleLR(max_lr, cycle_len, len_loader,
+                                  momentum_range, div_factor, increase_fraction)
 
-        self.callbacks = Callbacks(callbacks.callbacks + [one_cycle_clb])
+        self.callbacks = Callbacks(callbacks.callbacks + [one_cycle_cb])
 
         self.kek(lr=max_lr, epochs=cycle_len)
 
@@ -89,6 +105,10 @@ class Keker:
 
         with torch.set_grad_enabled(self.is_train):
             for i, batch in enumerate(self.state.loader):
+                if self.early_stop:
+                    if self.state.mode == "train":
+                        if i > self.early_stop:
+                            break
                 self.callbacks.on_batch_begin(i, self.state)
 
                 self.state.batch = self.to_device(batch)
@@ -110,11 +130,12 @@ class Keker:
         with torch.set_grad_enabled(False):
             self._run_epoch(1, 1)
 
-    def predict_loader(self, loader, savepath, preds_key):
+    def predict_loader(self, loader, savepath):
         callbacks = self.callbacks
 
         tmp_callbacks = Callbacks([ProgressBarCallback(),
-                                   PredictionsSaverCallback(savepath, preds_key)])
+                                   PredictionsSaverCallback(savepath,
+                                                            self.preds_key)])
 
         self.callbacks = tmp_callbacks
 
