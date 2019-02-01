@@ -171,18 +171,8 @@ class LRFinder(LRUpdater):
     https://sgugger.github.io/how-do-you-find-a-good-learning-rate.html
     """
 
-    def __init__(self, final_lr, n_steps=None, optimizer_key="main"):
-        """
-
-        :param init_lr: initial learning rate to use
-        :param final_lr: final learning rate to try with
-        :param n_steps:  number of batches to try;
-            if None - whole loader would be used.
-        :param optimizer_key: which optimizer key to use
-            for learning rate scheduling
-        """
-        super().__init__()
-
+    def __init__(self, final_lr, init_lr=1e-6, n_steps=None):
+        super().__init__(init_lr)
         self.final_lr = final_lr
         self.n_steps = n_steps
         self.multiplier = 0
@@ -192,6 +182,9 @@ class LRFinder(LRUpdater):
         res = self.init_lr * self.multiplier ** self.find_iter
         self.find_iter += 1
         return res
+
+    def calc_momentum(self):
+        pass
 
     def on_batch_end(self, i, state):
         super().on_batch_end(i, state)
