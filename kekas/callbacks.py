@@ -2,6 +2,7 @@ from pdb import set_trace as st
 
 from collections import defaultdict
 from pathlib import Path
+import shutil
 
 from typing import Tuple
 
@@ -176,20 +177,28 @@ class LRFinder(LRUpdater):
         self.final_lr = final_lr
         self.n_steps = n_steps
         self.multiplier = 0
-        self.find_iter = 0
+        self.n = 0
 
     def calc_lr(self):
-        res = self.init_lr * self.multiplier ** self.find_iter
-        self.find_iter += 1
+        res = self.init_lr * (self.final_lr / self.init_lr) ** \
+              (self.n / self.n_steps)
+        self.n += 1
         return res
 
     def calc_momentum(self):
         pass
 
+    def update_momentum(self, optimizer):
+        pass
+
+    def on_epoch_begin(self, epoch, epochs, state):
+        self.multiplier = self.init_lr ** (1 / self.n_steps)
+
     def on_batch_end(self, i, state):
         super().on_batch_end(i, state)
-        if self.find_iter > self.n_steps:
-            raise NotImplementedError("End of LRFinder")
+        if self.n > self.n_steps:
+            print("End of LRFinder")
+            state.stop = True
 
 
 class TBLogger(Callback):

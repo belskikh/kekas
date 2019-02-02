@@ -73,6 +73,7 @@ class Keker:
         self.callbacks = Callbacks(callbacks)
 
         self.early_stop = early_stop
+        self.state.stop = False
 
     def kek(self, lr, epochs, skip_val=False):
         self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
@@ -112,13 +113,17 @@ class Keker:
 
     def kek_lr(self,
                final_lr,
-               init_lr: float=1e-6,
-               n_steps: int=None,
-               logdir: str=None):
+               init_lr: float = 1e-6,
+               n_steps: int = None,
+               logdir: str = None):
 
         logdir = logdir or Path(self.tb_logdir) / "lr_find"
+        Path(logdir).mkdir(exist_ok=True)
         tmp_path = Path(logdir) / "tmp"
+        tmp_path.mkdir(exist_ok=True)
         self.save(str(tmp_path) + "/tmp.h5")
+
+        n_steps = n_steps or len(self.dataowner.train_dl)
 
         callbacks = self.callbacks
 
@@ -129,7 +134,6 @@ class Keker:
 
             self.callbacks = Callbacks(self.core_callbacks + [tblogger_cb,
                                                               lrfinder_cb])
-
             self.kek(lr=init_lr, epochs=1, skip_val=True)
         finally:
             # set old callbacks without LRFinder
@@ -141,10 +145,6 @@ class Keker:
 
         with torch.set_grad_enabled(self.is_train):
             for i, batch in enumerate(self.state.loader):
-                if self.early_stop:
-                    if self.state.mode == "train":
-                        if i > self.early_stop:
-                            break
                 self.callbacks.on_batch_begin(i, self.state)
 
                 self.state.batch = self.to_device(batch)
@@ -152,6 +152,15 @@ class Keker:
                 self.state.out = self.step()
 
                 self.callbacks.on_batch_end(i, self.state)
+
+                if (self.early_stop and self.state.mode == "train"
+                        and i > self.early_stop):
+                    # break only in train mode and if early stop is set
+                    self.state.stop = True
+
+                if self.state.stop:
+                    self.state.stop = False
+                    break
 
         self.callbacks.on_epoch_end(epoch, self.state)
 
@@ -197,7 +206,6 @@ class Keker:
         savepath = Path(savepath)
         savepath.parent.mkdir(exist_ok=True)
         torch.save(self.model.state_dict(), savepath)
-        print(f"Weights saved to {savepath}")
 
     def load(self, loadpath):
         # TODO: find more elegant fix
@@ -208,7 +216,6 @@ class Keker:
             # [7:] is to skip 'module.' in group name
             checkpoint = {k[7:]: v for k, v in checkpoint.items()}
         self.model.load_state_dict(checkpoint)
-        print(f"Weights loaded from {loadpath}")
 
     def to_device(self, batch):
         return {k: v.to(self.device) for k, v in batch.items()
