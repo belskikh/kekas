@@ -4,11 +4,11 @@ from collections import defaultdict
 from functools import partial
 from pathlib import Path
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Union
 
 import numpy as np
 import torch
-import torch.nn as nn
+from torch.utils.data import DataLoader
 from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
@@ -198,9 +198,26 @@ class Keker:
             preds = self.model(array)
         return preds
 
-    def TTA(self, n_aug=6):
-        # TODO: move to utils
-        pass
+    def TTA(self,
+            loader: DataLoader,
+            tfms: Union[List, Dict],
+            savedir: str,
+            prefix: str = "preds") -> None:
+
+        if isinstance(tfms, dict):
+            names = [f"{prefix}_{k}.npy" for k in tfms]
+            tfms = tfms.values()
+        elif isinstance(tfms, list):
+            names = [f"{prefix}_{i}.npy" for i in range(len(tfms))]
+        else:
+            raise ValueError(f"Transforms should be List or Dict, got {type(tfms)}")
+
+        default_tfms = loader.dataset.transforms
+        for name, tfm in zip(names, tfms):
+            loader.dataset.transforms = tfm
+            savepath = Path(savedir) / name
+            self.predict_loader(loader, savepath)
+        loader.dataset.transforms = default_tfms
 
     def save(self, savepath):
         savepath = Path(savepath)
@@ -209,6 +226,7 @@ class Keker:
 
     def load(self, loadpath):
         # TODO: find more elegant fix
+        loadpath = Path(loadpath)
         checkpoint = torch.load(loadpath,
                                 map_location=lambda storage, loc: storage)
         if not isinstance(self.model, DataParallelModel) \

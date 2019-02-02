@@ -340,7 +340,8 @@ class MetricsCallback(Callback):
 class PredictionsSaverCallback(Callback):
     def __init__(self, savepath, preds_key):
         super().__init__()
-        self.savepath = savepath
+        self.savepath = Path(savepath)
+        self.savepath.parent.mkdir(exist_ok=True)
         self.preds_key = preds_key
         self.preds = []
 
