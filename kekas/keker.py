@@ -142,28 +142,32 @@ class Keker:
             self.load(str(tmp_path) + "/tmp.h5")
 
     def _run_epoch(self, epoch, epochs):
-        self.callbacks.on_epoch_begin(epoch, epochs, self.state)
+        self.state.pbar = None
+        try:
+            self.callbacks.on_epoch_begin(epoch, epochs, self.state)
 
-        with torch.set_grad_enabled(self.is_train):
-            for i, batch in enumerate(self.state.loader):
-                self.callbacks.on_batch_begin(i, self.state)
+            with torch.set_grad_enabled(self.is_train):
+                for i, batch in enumerate(self.state.loader):
+                    self.callbacks.on_batch_begin(i, self.state)
 
-                self.state.batch = self.to_device(batch)
+                    self.state.batch = self.to_device(batch)
 
-                self.state.out = self.step()
+                    self.state.out = self.step()
 
-                self.callbacks.on_batch_end(i, self.state)
+                    self.callbacks.on_batch_end(i, self.state)
 
-                if (self.early_stop and self.state.mode == "train"
-                        and i > self.early_stop):
-                    # break only in train mode and if early stop is set
-                    self.state.stop = True
+                    if (self.early_stop and self.state.mode == "train"
+                            and i > self.early_stop):
+                        # break only in train mode and if early stop is set
+                        self.state.stop = True
 
-                if self.state.stop:
-                    self.state.stop = False
-                    break
+                    if self.state.stop:
+                        self.state.stop = False
+                        break
 
-        self.callbacks.on_epoch_end(epoch, self.state)
+            self.callbacks.on_epoch_end(epoch, self.state)
+        finally:
+            self.state.pbar.close()
 
     def default_step(self):
         inp = self.state.batch["image"]

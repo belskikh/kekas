@@ -244,7 +244,6 @@ class TBLogger(Callback):
 
 class SimpleLossCallback(Callback):
     def __init__(self, target_key, preds_key):
-        super().__init__()
         self.target_key = target_key
         self.preds_key = preds_key
 
@@ -265,18 +264,17 @@ class SimpleOptimizerCallback(Callback):
 
 class ProgressBarCallback(Callback):
     def __init__(self):
-        super().__init__()
-        self.pbar = None
+        # self.pbar = None
         self.running_loss = None
 
     def on_epoch_begin(self, epoch, epochs, state):
         loader = state.loader
         if state.mode == "train":
             description = f"Epoch {epoch+1}/{epochs}"
-            self.pbar = get_pbar(loader, description)
+            state.pbar = get_pbar(loader, description)
         elif state.mode == "test":
             description = "Predict"
-            self.pbar = get_pbar(loader, description)
+            state.pbar = get_pbar(loader, description)
 
     def on_batch_end(self, i, state):
 
@@ -287,19 +285,19 @@ class ProgressBarCallback(Callback):
             self.running_loss = exp_weight_average(state.loss,
                                                    self.running_loss)
             postfix = {"loss": f"{self.running_loss:.4f}"}
-            self.pbar.set_postfix(postfix)
-            self.pbar.update()
+            state.pbar.set_postfix(postfix)
+            state.pbar.update()
         elif state.mode == "test":
-            self.pbar.update()
+            state.pbar.update()
 
     def on_epoch_end(self, epoch, state):
         if state.mode == "val":
             metrics = state.get("pbar_metrics", {})
-            self.pbar.set_postfix_str(extend_postfix(self.pbar.postfix,
+            state.pbar.set_postfix_str(extend_postfix(state.pbar.postfix,
                                                      metrics))
-            self.pbar.close()
+            state.pbar.close()
         elif state.mode == "test":
-            self.pbar.close()
+            state.pbar.close()
 
 
 class MetricsCallback(Callback):
