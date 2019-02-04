@@ -58,10 +58,11 @@ class Keker:
         opt_cb = opt_cb or SimpleOptimizerCallback()
         metrics_cb = MetricsCallback(target_key, preds_key, metrics)
 
-        self.core_callbacks = callbacks or [] + [loss_cb,
-                                                 metrics_cb,
-                                                 opt_cb,
-                                                 ProgressBarCallback()]
+        callbacks = callbacks or []
+        self.core_callbacks = callbacks + [loss_cb,
+                                           metrics_cb,
+                                           opt_cb,
+                                           ProgressBarCallback()]
         callbacks = self.core_callbacks[:]
 
         if tb_logdir:

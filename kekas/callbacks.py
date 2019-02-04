@@ -1,10 +1,10 @@
-from pdb import set_trace as st
+from pdb import set_trace
 
 from collections import defaultdict
 from pathlib import Path
 import shutil
 
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
 
@@ -357,3 +357,53 @@ class PredictionsSaverCallback(Callback):
         if state.mode == "test":
             np.save(self.savepath, np.concatenate(self.preds))
             self.preds = []
+
+
+class DebuggerCallback(Callback):
+    def __init__(self, where: List[str], modes: List[str]):
+        self.where = where
+        self.modes = modes
+
+    def on_batch_begin(self, i, state):
+        if "on_batch_begin" in self.where:
+            if state.mode == "train" and "train" in self.modes:
+                set_trace()
+            if state.mode == "val" and "val" in self.modes:
+                set_trace()
+            if state.mode == "test" and "test" in self.modes:
+                set_trace()
+
+    def on_batch_end(self, i, state):
+        if "on_batch_end" in self.where:
+            if state.mode == "train" and "train" in self.modes:
+                set_trace()
+            if state.mode == "val" and "val" in self.modes:
+                set_trace()
+            if state.mode == "test" and "test" in self.modes:
+                set_trace()
+
+    def on_epoch_begin(self, epoch, epochs, state):
+        if "on_epoch_begin" in self.where:
+            if state.mode == "train" and "train" in self.modes:
+                set_trace()
+            if state.mode == "val" and "val" in self.modes:
+                set_trace()
+            if state.mode == "test" and "test" in self.modes:
+                set_trace()
+
+    def on_epoch_end(self, epoch, state):
+        if "on_epoch_end" in self.where:
+            if state.mode == "train" and "train" in self.modes:
+                set_trace()
+            if state.mode == "val" and "val" in self.modes:
+                set_trace()
+            if state.mode == "test" and "test" in self.modes:
+                set_trace()
+
+    def on_train_begin(self):
+        if "on_train_begin" in self.where:
+            set_trace()
+
+    def on_train_end(self):
+        if "on_train_end" in self.where:
+            set_trace()
