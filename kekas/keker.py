@@ -13,7 +13,7 @@ from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
     PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
-    TBLogger, LRFinder
+    TBLogger, LRFinder, CheckpointSaverCallback
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict
@@ -29,7 +29,7 @@ class Keker:
                  opt_fn=None, criterion=None,
                  device=None, step_fn=None,
                  loss_cb=None, opt_cb=None, callbacks=None,
-                 early_stop=None, tb_logdir=None):
+                 logdir=None):
         assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
 
         self.state = DotDict()
@@ -65,38 +65,61 @@ class Keker:
                                            ProgressBarCallback()]
         callbacks = self.core_callbacks[:]
 
-        if tb_logdir:
+        if logdir:
             self.state.do_log = True
             self.state.metrics = defaultdict(dict)
-            callbacks += [TBLogger(tb_logdir)]
-            self.tb_logdir = tb_logdir
+            callbacks += [TBLogger(logdir)]
+            self.logdir = logdir
+
+        self.state.checkpoint = ""
 
         self.callbacks = Callbacks(callbacks)
 
-        self.early_stop = early_stop
+        self.stop_iter = None
         self.state.stop = False
 
-    def kek(self, lr, epochs, skip_val=False):
+    def kek(self, lr, epochs, stop_iter=None, skip_val=False, save_n_best=None,
+            save_metric=None, save_prefix=None, save_maximize=False):
+
+        if stop_iter:
+            self.stop_iter = stop_iter
+
+        if save_n_best:
+            cp_saver = CheckpointSaverCallback(savedir=self.logdir,
+                                               metric=save_metric,
+                                               n_best=save_n_best,
+                                               prefix=save_prefix,
+                                               maximize=save_maximize)
+            self.callbacks = Callbacks(self.callbacks.callbacks + [cp_saver])
+
         self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
 
-        self.callbacks.on_train_begin()
+        # try-finally to properly close progress bar
+        try:
+            self.callbacks.on_train_begin()
 
-        for epoch in range(epochs):
-            self.set_mode("train")
-            self._run_epoch(epoch, epochs)
-
-            if not skip_val:
-                self.set_mode("val")
+            for epoch in range(epochs):
+                self.set_mode("train")
                 self._run_epoch(epoch, epochs)
 
-        self.callbacks.on_train_end()
+                if not skip_val:
+                    self.set_mode("val")
+                    self._run_epoch(epoch, epochs)
+
+            self.callbacks.on_train_end()
+        finally:
+            self.state.pbar.close()
 
     def kek_one_cycle(self,
                       max_lr: float,
                       cycle_len: int,
                       momentum_range: Tuple[float, float] = (0.95, 0.85),
                       div_factor: float = 25,
-                      increase_fraction: float = 0.3) -> None:
+                      increase_fraction: float = 0.3,
+                      save_n_best: int = None,
+                      save_metric: int = None,
+                      save_prefix: str = None,
+                      save_maximize: bool = False) -> None:
 
         callbacks = self.callbacks
 
@@ -107,7 +130,12 @@ class Keker:
 
         self.callbacks = Callbacks(callbacks.callbacks + [one_cycle_cb])
 
-        self.kek(lr=max_lr, epochs=cycle_len)
+        self.kek(lr=max_lr,
+                 epochs=cycle_len,
+                 save_n_best=save_n_best,
+                 save_metric=save_metric,
+                 save_prefix=save_prefix,
+                 save_maximize=save_maximize)
 
         # set old callbacks without OneCycle
         self.callbacks = callbacks
@@ -118,7 +146,7 @@ class Keker:
                n_steps: int = None,
                logdir: str = None):
 
-        logdir = logdir or Path(self.tb_logdir) / "lr_find"
+        logdir = logdir or Path(self.logdir) / "lr_find"
         Path(logdir).mkdir(exist_ok=True)
         tmp_path = Path(logdir) / "tmp"
         tmp_path.mkdir(exist_ok=True)
@@ -142,33 +170,33 @@ class Keker:
             self.load(str(tmp_path) + "/tmp.h5")
 
     def _run_epoch(self, epoch, epochs):
-        self.state.pbar = None
-        # try-finally to properly close progress bar
-        try:
-            self.callbacks.on_epoch_begin(epoch, epochs, self.state)
+        self.callbacks.on_epoch_begin(epoch, epochs, self.state)
 
-            with torch.set_grad_enabled(self.is_train):
-                for i, batch in enumerate(self.state.loader):
-                    self.callbacks.on_batch_begin(i, self.state)
+        with torch.set_grad_enabled(self.is_train):
+            for i, batch in enumerate(self.state.loader):
+                self.callbacks.on_batch_begin(i, self.state)
 
-                    self.state.batch = self.to_device(batch)
+                self.state.batch = self.to_device(batch)
 
-                    self.state.out = self.step()
+                self.state.out = self.step()
 
-                    self.callbacks.on_batch_end(i, self.state)
+                self.callbacks.on_batch_end(i, self.state)
 
-                    if (self.early_stop and self.state.mode == "train"
-                            and i > self.early_stop):
-                        # break only in train mode and if early stop is set
-                        self.state.stop = True
+                if (self.stop_iter and self.state.mode == "train"
+                        and i == self.stop_iter - 1):
+                    # break only in train mode and if early stop is set
+                    self.state.stop = True
 
-                    if self.state.stop:
-                        self.state.stop = False
-                        break
+                if self.state.stop:
+                    self.state.stop = False
+                    # st()
+                    break
 
-            self.callbacks.on_epoch_end(epoch, self.state)
-        finally:
-            self.state.pbar.close()
+        self.callbacks.on_epoch_end(epoch, self.state)
+
+        if self.state.checkpoint:
+            self.save(self.state.checkpoint)
+            self.state.checkpoint = ""
 
     def default_step(self):
         inp = self.state.batch["image"]

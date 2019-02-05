@@ -1,8 +1,10 @@
 from pdb import set_trace
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from pathlib import Path
 import shutil
+
+import math
 
 from typing import Tuple, List
 
@@ -292,9 +294,10 @@ class ProgressBarCallback(Callback):
 
     def on_epoch_end(self, epoch, state):
         if state.mode == "val":
-            metrics = state.get("pbar_metrics", {})
+            metrics = state.get("epoch_metrics", {})
             state.pbar.set_postfix_str(extend_postfix(state.pbar.postfix,
                                                       metrics))
+            # set_trace()
             state.pbar.close()
         elif state.mode == "test":
             state.pbar.close()
@@ -355,6 +358,42 @@ class PredictionsSaverCallback(Callback):
         if state.mode == "test":
             np.save(self.savepath, np.concatenate(self.preds))
             self.preds = []
+
+
+class CheckpointSaverCallback(Callback):
+    def __init__(self, savedir: str, metric: str = None, n_best: int = 3,
+                 prefix: str = None, maximize: bool = False):
+        self.metric = metric
+        self.n_best = n_best
+        self.savedir = Path(savedir)
+        self.prefix = prefix or "checkpoint."
+        self.maximize = maximize
+        self.best_scores = []
+
+    def on_epoch_begin(self, epoch, epochs, state):
+        # trim best scores
+        self.best_scores = self.best_scores[:epochs]
+
+    def on_epoch_end(self, epoch, state):
+        if state.mode == "val":
+            score_val = state.epoch_metrics.get(self.metric,
+                                                state.epoch_metrics["val_loss"])
+            score_name = f"{self.prefix}{epoch}.h5"
+            score = (score_val, score_name)
+            sorted_scores = sorted(self.best_scores + [score],
+                                   reverse=self.maximize)
+            self.best_scores = sorted_scores[:self.n_best]
+            if score_name in (s[1] for s in self.best_scores):
+                state.checkpoint = f"{self.savedir / score_name}"
+                # remove worst checkpoint
+                if len(self.best_scores) > self.n_best:
+                    Path(f"{self.savedir / sorted_scores[-1][1]}").unlink()
+
+    def on_train_end(self):
+        best_cp = self.savedir / self.best_scores[0][1]
+        shutil.copy(str(best_cp), f"{self.savedir}/{self.prefix}best.h5")
+        for score in self.best_scores:
+            print(f"{self.savedir/score[1]}\t{score[0]:.6f}")
 
 
 class DebuggerCallback(Callback):
