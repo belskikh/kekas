@@ -94,9 +94,9 @@ class Keker:
     def kek_one_cycle(self,
                       max_lr: float,
                       cycle_len: int,
-                      momentum_range: Tuple[float, float]=(0.95, 0.85),
-                      div_factor: float=25,
-                      increase_fraction: float=0.3) -> None:
+                      momentum_range: Tuple[float, float] = (0.95, 0.85),
+                      div_factor: float = 25,
+                      increase_fraction: float = 0.3) -> None:
 
         callbacks = self.callbacks
 
@@ -143,6 +143,7 @@ class Keker:
 
     def _run_epoch(self, epoch, epochs):
         self.state.pbar = None
+        # try-finally to properly close progress bar
         try:
             self.callbacks.on_epoch_begin(epoch, epochs, self.state)
 

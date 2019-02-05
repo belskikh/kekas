@@ -294,7 +294,7 @@ class ProgressBarCallback(Callback):
         if state.mode == "val":
             metrics = state.get("pbar_metrics", {})
             state.pbar.set_postfix_str(extend_postfix(state.pbar.postfix,
-                                                     metrics))
+                                                      metrics))
             state.pbar.close()
         elif state.mode == "test":
             state.pbar.close()
