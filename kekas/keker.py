@@ -13,7 +13,8 @@ from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
     PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
-    TBLogger, LRFinder, CheckpointSaverCallback, SimpleSchedulerCallback
+    TBLogger, LRFinder, CheckpointSaverCallback, SimpleSchedulerCallback, \
+    EarlyStoppingCallback
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict
@@ -83,16 +84,13 @@ class Keker:
 
     def kek(self, lr, epochs, opt=None, opt_params=None,
             sched=None, sched_params=None, sched_reduce_metric=None,
-            stop_iter=None, skip_val=False, save_cp_params=None):
+            stop_iter=None, skip_val=False, save_cp_params=None,
+            early_stop_params=None):
 
         if stop_iter:
             self.stop_iter = stop_iter
 
-        save_cp_params = save_cp_params or {}
-        if save_cp_params:
-            cp_saver = CheckpointSaverCallback(savedir=self.logdir,
-                                               **save_cp_params)
-            self.callbacks = Callbacks(self.callbacks.callbacks + [cp_saver])
+        callbacks = self.callbacks
 
         opt = opt or self.opt
         opt_params = opt_params or self.opt_params
@@ -104,6 +102,17 @@ class Keker:
             sched_cb = SimpleSchedulerCallback(sched=self.state.sched,
                                                metric=sched_reduce_metric)
             self.callbacks = Callbacks(self.callbacks.callbacks + [sched_cb])
+
+        save_cp_params = save_cp_params or {}
+        if save_cp_params:
+            cp_saver_cb = CheckpointSaverCallback(savedir=self.logdir,
+                                                  **save_cp_params)
+            self.callbacks = Callbacks(self.callbacks.callbacks + [cp_saver_cb])
+
+        early_stop_params = early_stop_params or {}
+        if early_stop_params:
+            early_stop_cb = EarlyStoppingCallback(**early_stop_params)
+            self.callbacks = Callbacks(self.callbacks.callbacks + [early_stop_cb])
 
         # try-finally to properly close progress bar
         try:
@@ -119,12 +128,13 @@ class Keker:
 
                 if self.state.stop_train:
                     self.state.stop_train = False
-                    print(f"Early stopped on {epoch} epoch")
+                    print(f"Early stopped on {epoch + 1} epoch")
                     break
 
             self.callbacks.on_train_end()
         finally:
             self.state.pbar.close()
+            self.callbacks = callbacks
 
     def kek_one_cycle(self,
                       max_lr: float,
@@ -132,10 +142,10 @@ class Keker:
                       momentum_range: Tuple[float, float] = (0.95, 0.85),
                       div_factor: float = 25,
                       increase_fraction: float = 0.3,
-                      save_n_best: int = None,
-                      save_metric: int = None,
-                      save_prefix: str = None,
-                      save_maximize: bool = False) -> None:
+                      opt=None,
+                      opt_params=None,
+                      save_cp_params: Dict = None,
+                      early_stop_params: Dict = None) -> None:
 
         callbacks = self.callbacks
 
@@ -144,17 +154,18 @@ class Keker:
         one_cycle_cb = OneCycleLR(max_lr, cycle_len, len_loader,
                                   momentum_range, div_factor, increase_fraction)
 
-        self.callbacks = Callbacks(callbacks.callbacks + [one_cycle_cb])
+        try:
+            self.callbacks = Callbacks(callbacks.callbacks + [one_cycle_cb])
 
-        self.kek(lr=max_lr,
-                 epochs=cycle_len,
-                 save_n_best=save_n_best,
-                 save_metric=save_metric,
-                 save_prefix=save_prefix,
-                 save_maximize=save_maximize)
-
-        # set old callbacks without OneCycle
-        self.callbacks = callbacks
+            self.kek(lr=max_lr,
+                     epochs=cycle_len,
+                     opt=opt,
+                     opt_params=opt_params,
+                     save_cp_params=save_cp_params,
+                     early_stop_params=early_stop_params)
+        finally:
+            # set old callbacks without OneCycle
+            self.callbacks = callbacks
 
     def kek_lr(self,
                final_lr,
