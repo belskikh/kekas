@@ -76,24 +76,22 @@ class Keker:
         self.callbacks = Callbacks(callbacks)
 
         self.stop_iter = None
-        self.state.stop = False
+        self.state.stop_epoch = False
+        self.state.stop_train = False
 
         self.state.sched = None
 
     def kek(self, lr, epochs, opt=None, opt_params=None,
             sched=None, sched_params=None, sched_reduce_metric=None,
-            stop_iter=None, skip_val=False, save_n_best=None, save_metric=None,
-            save_prefix=None, save_maximize=False):
+            stop_iter=None, skip_val=False, save_cp_params=None):
 
         if stop_iter:
             self.stop_iter = stop_iter
 
-        if save_n_best:
+        save_cp_params = save_cp_params or {}
+        if save_cp_params:
             cp_saver = CheckpointSaverCallback(savedir=self.logdir,
-                                               metric=save_metric,
-                                               n_best=save_n_best,
-                                               prefix=save_prefix,
-                                               maximize=save_maximize)
+                                               **save_cp_params)
             self.callbacks = Callbacks(self.callbacks.callbacks + [cp_saver])
 
         opt = opt or self.opt
@@ -118,6 +116,11 @@ class Keker:
                 if not skip_val:
                     self.set_mode("val")
                     self._run_epoch(epoch, epochs)
+
+                if self.state.stop_train:
+                    self.state.stop_train = False
+                    print(f"Early stopped on {epoch} epoch")
+                    break
 
             self.callbacks.on_train_end()
         finally:
@@ -198,10 +201,10 @@ class Keker:
                 if (self.stop_iter and self.state.mode == "train"
                         and i == self.stop_iter - 1):
                     # break only in train mode and if early stop is set
-                    self.state.stop = True
+                    self.state.stop_epoch = True
 
-                if self.state.stop:
-                    self.state.stop = False
+                if self.state.stop_epoch:
+                    self.state.stop_epoch = False
                     # st()
                     break
 

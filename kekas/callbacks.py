@@ -200,7 +200,7 @@ class LRFinder(LRUpdater):
         super().on_batch_end(i, state)
         if self.n > self.n_steps:
             print("End of LRFinder")
-            state.stop = True
+            state.stop_epoch = True
 
 
 class TBLogger(Callback):
@@ -383,12 +383,19 @@ class PredictionsSaverCallback(Callback):
 
 class CheckpointSaverCallback(Callback):
     def __init__(self, savedir: str, metric: str = None, n_best: int = 3,
-                 prefix: str = None, maximize: bool = False):
-        self.metric = metric
+                 prefix: str = None, mode: str = "min"):
+        self.metric = metric or "val_loss"
         self.n_best = n_best
         self.savedir = Path(savedir)
         self.prefix = prefix or "checkpoint."
-        self.maximize = maximize
+
+        if mode not in ["min", "max"]:
+            raise ValueError(f"mode should be 'min' or 'max', got {mode}")
+        if mode == "min":
+            self.maximize = False
+        if mode == "max":
+            self.maximize = True
+
         self.best_scores = []
 
     def on_epoch_begin(self, epoch, epochs, state):
@@ -397,8 +404,7 @@ class CheckpointSaverCallback(Callback):
 
     def on_epoch_end(self, epoch, state):
         if state.mode == "val":
-            score_val = state.epoch_metrics.get(self.metric,
-                                                state.epoch_metrics["val_loss"])
+            score_val = state.epoch_metrics[self.metric]
             score_name = f"{self.prefix}{epoch}.h5"
             score = (score_val, score_name)
             sorted_scores = sorted(self.best_scores + [score],
@@ -416,6 +422,41 @@ class CheckpointSaverCallback(Callback):
         print(f"\nCheckpoint\t{self.metric or 'val_loss'}")
         for score in self.best_scores:
             print(f"{self.savedir/score[1]}\t{score[0]:.6f}")
+
+
+class EarlyStoppingCallback(Callback):
+    def __init__(self,
+                 metric: str = None,
+                 patience: int = 5,
+                 mode:str = "min",
+                 min_delta:int = 0):
+        self.best_score = None
+        self.metric = metric or "val_loss"
+        self.patience = patience
+        self.num_bad_epochs = 0
+        self.is_better = None
+
+        if mode not in ["min", "max"]:
+            raise ValueError(f"mode should be 'min' or 'max', got {mode}")
+        if mode == "min":
+            self.is_better = lambda score, best: score < best - min_delta
+        if mode == "max":
+            self.is_better = lambda score, best: score > best - min_delta
+
+    def on_batch_end(self, i, state):
+        score = state.epoch_metrics[self.metric]
+        if self.best_score is None:
+            self.best_score = score
+
+        if self.is_better(score, self.best_score):
+            self.num_bad_epochs = 0
+            self.best_score = score
+        else:
+            self.num_bad_epochs += 1
+
+        if self.num_bad_epochs >= self.patience:
+            state.stop_epoch = True
+            state.stop_train = True
 
 
 class DebuggerCallback(Callback):
