@@ -13,7 +13,7 @@ from torch.optim import SGD
 
 from .callbacks import Callbacks, ProgressBarCallback, SimpleOptimizerCallback, \
     PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
-    TBLogger, LRFinder, CheckpointSaverCallback
+    TBLogger, LRFinder, CheckpointSaverCallback, SimpleSchedulerCallback
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict
@@ -25,8 +25,7 @@ class Keker:
     '''
     def __init__(self, model, dataowner,
                  target_key="label", preds_key="logits",
-                 metrics=None,
-                 opt_fn=None, criterion=None,
+                 metrics=None, opt=None, opt_params=None, criterion=None,
                  device=None, step_fn=None,
                  loss_cb=None, opt_cb=None, callbacks=None,
                  logdir=None):
@@ -46,7 +45,8 @@ class Keker:
             self.state.criterion = DataParallelCriterion(self.state.criterion)
 
         self.dataowner = dataowner
-        self.opt_fn = opt_fn or partial(SGD)
+        self.opt = opt or SGD
+        self.opt_params = opt_params or {}
         self.device = device or torch.device("cuda" if
                                              torch.cuda.is_available()
                                              else "cpu")
@@ -78,8 +78,12 @@ class Keker:
         self.stop_iter = None
         self.state.stop = False
 
-    def kek(self, lr, epochs, stop_iter=None, skip_val=False, save_n_best=None,
-            save_metric=None, save_prefix=None, save_maximize=False):
+        self.state.sched = None
+
+    def kek(self, lr, epochs, opt=None, opt_params=None,
+            sched=None, sched_params=None, sched_reduce_metric=None,
+            stop_iter=None, skip_val=False, save_n_best=None, save_metric=None,
+            save_prefix=None, save_maximize=False):
 
         if stop_iter:
             self.stop_iter = stop_iter
@@ -92,7 +96,16 @@ class Keker:
                                                maximize=save_maximize)
             self.callbacks = Callbacks(self.callbacks.callbacks + [cp_saver])
 
-        self.state.opt = self.opt_fn(params=self.model.parameters(), lr=lr)
+        opt = opt or self.opt
+        opt_params = opt_params or self.opt_params
+        self.state.opt = opt(params=self.model.parameters(), lr=lr,
+                             **opt_params)
+        if sched:
+            sched_params = sched_params or {}
+            self.state.sched = sched(optimizer=self.state.opt, **sched_params)
+            sched_cb = SimpleSchedulerCallback(sched=self.state.sched,
+                                               metric=sched_reduce_metric)
+            self.callbacks = Callbacks(self.callbacks.callbacks + [sched_cb])
 
         # try-finally to properly close progress bar
         try:

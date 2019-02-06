@@ -4,11 +4,11 @@ from collections import defaultdict, namedtuple
 from pathlib import Path
 import shutil
 
-import math
-
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 import numpy as np
+
+from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
 from tensorboardX import SummaryWriter
 
@@ -217,6 +217,8 @@ class TBLogger(Callback):
             self.val_iter += 1
 
     def on_train_begin(self):
+        self.train_iter = 0
+        self.val_iter = 0
         Path(self.log_dir).mkdir(exist_ok=True)
         self.writer = SummaryWriter(self.log_dir)
 
@@ -262,6 +264,25 @@ class SimpleOptimizerCallback(Callback):
             state.opt.zero_grad()
             state.loss.backward()
             state.opt.step()
+
+
+class SimpleSchedulerCallback(Callback):
+    def __init__(self,
+                 sched: Union[_LRScheduler, ReduceLROnPlateau],
+                 metric: str = None):
+        self.metric = metric or "val_loss"
+        if isinstance(sched, ReduceLROnPlateau):
+            self.when = "on_epoch_end"
+        else:
+            self.when = "on_epoch_begin"
+
+    def on_epoch_begin(self, epoch, epochs, state):
+        if self.when == "on_epoch_begin" and state.mode == "train":
+            state.sched.step()
+
+    def on_epoch_end(self, epoch, state):
+        if self.when == "on_epoch_end" and state.mode == "train":
+            state.sched.step(state.epoch_metrics[self.metric])
 
 
 class ProgressBarCallback(Callback):
@@ -398,12 +419,12 @@ class CheckpointSaverCallback(Callback):
 
 
 class DebuggerCallback(Callback):
-    def __init__(self, where: List[str], modes: List[str]):
-        self.where = where
+    def __init__(self, when: List[str], modes: List[str]):
+        self.when = when
         self.modes = modes
 
     def on_batch_begin(self, i, state):
-        if "on_batch_begin" in self.where:
+        if "on_batch_begin" in self.when:
             if state.mode == "train" and "train" in self.modes:
                 set_trace()
             if state.mode == "val" and "val" in self.modes:
@@ -412,7 +433,7 @@ class DebuggerCallback(Callback):
                 set_trace()
 
     def on_batch_end(self, i, state):
-        if "on_batch_end" in self.where:
+        if "on_batch_end" in self.when:
             if state.mode == "train" and "train" in self.modes:
                 set_trace()
             if state.mode == "val" and "val" in self.modes:
@@ -421,7 +442,7 @@ class DebuggerCallback(Callback):
                 set_trace()
 
     def on_epoch_begin(self, epoch, epochs, state):
-        if "on_epoch_begin" in self.where:
+        if "on_epoch_begin" in self.when:
             if state.mode == "train" and "train" in self.modes:
                 set_trace()
             if state.mode == "val" and "val" in self.modes:
@@ -430,7 +451,7 @@ class DebuggerCallback(Callback):
                 set_trace()
 
     def on_epoch_end(self, epoch, state):
-        if "on_epoch_end" in self.where:
+        if "on_epoch_end" in self.when:
             if state.mode == "train" and "train" in self.modes:
                 set_trace()
             if state.mode == "val" and "val" in self.modes:
@@ -439,9 +460,9 @@ class DebuggerCallback(Callback):
                 set_trace()
 
     def on_train_begin(self):
-        if "on_train_begin" in self.where:
+        if "on_train_begin" in self.when:
             set_trace()
 
     def on_train_end(self):
-        if "on_train_end" in self.where:
+        if "on_train_end" in self.when:
             set_trace()
