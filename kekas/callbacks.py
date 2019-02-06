@@ -204,46 +204,70 @@ class LRFinder(LRUpdater):
 
 
 class TBLogger(Callback):
-    def __init__(self, log_dir):
-        self.log_dir = log_dir
+    def __init__(self, logdir):
+        self.logdir = Path(logdir)
         self.writer = None
+        self.total_iter = 0
         self.train_iter = 0
         self.val_iter = 0
+        self.train_metrics = defaultdict(list)
+        self.val_metrics = defaultdict(list)
 
     def update_total_iter(self, mode):
         if mode == "train":
             self.train_iter += 1
-        if mode == "val":
+        if mode == "test":
             self.val_iter += 1
+        self.total_iter += 1
 
     def on_train_begin(self):
         self.train_iter = 0
         self.val_iter = 0
-        Path(self.log_dir).mkdir(exist_ok=True)
-        self.writer = SummaryWriter(self.log_dir)
+        self.logdir.mkdir(exist_ok=True)
+        self.train_writer = SummaryWriter(str(self.logdir / "train"))
+        self.val_writer = SummaryWriter(str(self.logdir / "val"))
+        self.train_metrics = defaultdict(list)
+        self.val_metrics = defaultdict(list)
 
     def on_batch_end(self, i, state):
         if state.mode == "train":
             self.update_total_iter("train")
             for name, metric in state.metrics["train"].items():
-                self.writer.add_scalar(f"train/{name}",
-                                       float(metric),
-                                       global_step=self.train_iter)
+                self.train_writer.add_scalar(f"batch/{name}",
+                                             float(metric),
+                                             global_step=self.total_iter)
+                self.train_metrics[name].append(float(metric))
 
             lr = get_opt_lr(state.opt)
-            self.writer.add_scalar("train/lr",
-                                   float(lr),
-                                   global_step=self.train_iter)
+            self.train_writer.add_scalar("lr",
+                                         float(lr),
+                                         global_step=self.train_iter)
 
         elif state.mode == "val":
             self.update_total_iter("val")
             for name, metric in state.metrics["val"].items():
-                self.writer.add_scalar(f"val/{name}",
-                                       float(metric),
-                                       global_step=self.val_iter)
+                self.val_writer.add_scalar(f"batch/{name}",
+                                           float(metric),
+                                           global_step=self.total_iter)
+                self.val_metrics[name].append(float(metric))
+
+    def on_epoch_end(self, epoch, state):
+        if state.mode == "train":
+            for name, metric in self.train_metrics.items():
+                mean = np.mean(metric[-10:])  # get last 10 values as approximation
+                self.train_writer.add_scalar(f"epoch/{name}",
+                                             float(mean),
+                                             global_step=epoch)
+        if state.mode == "val":
+            for name, metric in self.train_metrics.items():
+                mean = np.mean(metric)
+                self.val_writer.add_scalar(f"epoch/{name}",
+                                           float(mean),
+                                           global_step=epoch)
 
     def on_train_end(self):
-        self.writer.close()
+        self.train_writer.close()
+        self.val_writer.close()
 
 
 class SimpleLossCallback(Callback):

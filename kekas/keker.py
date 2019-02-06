@@ -28,8 +28,7 @@ class Keker:
                  target_key="label", preds_key="logits",
                  metrics=None, opt=None, opt_params=None, criterion=None,
                  device=None, step_fn=None,
-                 loss_cb=None, opt_cb=None, callbacks=None,
-                 logdir=None):
+                 loss_cb=None, opt_cb=None, callbacks=None):
         assert isinstance(dataowner, DataOwner), "I need DataOwner, human"
 
         self.state = DotDict()
@@ -66,15 +65,9 @@ class Keker:
                                            ProgressBarCallback()]
         callbacks = self.core_callbacks[:]
 
-        if logdir:
-            self.state.do_log = True
-            self.state.metrics = defaultdict(dict)
-            callbacks += [TBLogger(logdir)]
-            self.logdir = logdir
+        self.callbacks = Callbacks(callbacks)
 
         self.state.checkpoint = ""
-
-        self.callbacks = Callbacks(callbacks)
 
         self.stop_iter = None
         self.state.stop_epoch = False
@@ -84,7 +77,7 @@ class Keker:
 
     def kek(self, lr, epochs, opt=None, opt_params=None,
             sched=None, sched_params=None, sched_reduce_metric=None,
-            stop_iter=None, skip_val=False, save_cp_params=None,
+            stop_iter=None, skip_val=False, logdir=None, cp_saver_params=None,
             early_stop_params=None):
 
         if stop_iter:
@@ -103,10 +96,15 @@ class Keker:
                                                metric=sched_reduce_metric)
             self.callbacks = Callbacks(self.callbacks.callbacks + [sched_cb])
 
-        save_cp_params = save_cp_params or {}
-        if save_cp_params:
-            cp_saver_cb = CheckpointSaverCallback(savedir=self.logdir,
-                                                  **save_cp_params)
+        if logdir:
+            self.state.do_log = True
+            self.state.metrics = defaultdict(dict)
+            tboard_cb = TBLogger(logdir)
+            self.callbacks = Callbacks(self.callbacks.callbacks + [tboard_cb])
+
+        cp_saver_params = cp_saver_params or {}
+        if cp_saver_params:
+            cp_saver_cb = CheckpointSaverCallback(**cp_saver_params)
             self.callbacks = Callbacks(self.callbacks.callbacks + [cp_saver_cb])
 
         early_stop_params = early_stop_params or {}
@@ -144,6 +142,7 @@ class Keker:
                       increase_fraction: float = 0.3,
                       opt=None,
                       opt_params=None,
+                      logdir: str = None,
                       save_cp_params: Dict = None,
                       early_stop_params: Dict = None) -> None:
 
@@ -161,40 +160,37 @@ class Keker:
                      epochs=cycle_len,
                      opt=opt,
                      opt_params=opt_params,
-                     save_cp_params=save_cp_params,
+                     logdir=logdir,
+                     cp_saver_params=save_cp_params,
                      early_stop_params=early_stop_params)
         finally:
             # set old callbacks without OneCycle
             self.callbacks = callbacks
 
     def kek_lr(self,
-               final_lr,
+               final_lr: float,
+               logdir: str,
                init_lr: float = 1e-6,
-               n_steps: int = None,
-               logdir: str = None):
+               n_steps: int = None):
 
-        logdir = logdir or Path(self.logdir) / "lr_find"
-        Path(logdir).mkdir(exist_ok=True)
-        tmp_path = Path(logdir) / "tmp"
-        tmp_path.mkdir(exist_ok=True)
-        self.save(str(tmp_path) + "/tmp.h5")
+        logdir = Path(logdir)
+        logdir.mkdir(exist_ok=True)
+        tmp_cp = logdir / "tmp.h5"
+        self.save(tmp_cp)
 
         n_steps = n_steps or len(self.dataowner.train_dl)
 
         callbacks = self.callbacks
 
         try:
-            # temporarily add Logger and LRFinder callback
-            tblogger_cb = TBLogger(str(logdir))
             lrfinder_cb = LRFinder(final_lr, init_lr, n_steps)
 
-            self.callbacks = Callbacks(self.core_callbacks + [tblogger_cb,
-                                                              lrfinder_cb])
-            self.kek(lr=init_lr, epochs=1, skip_val=True)
+            self.callbacks = Callbacks(self.core_callbacks + [lrfinder_cb])
+            self.kek(lr=init_lr, epochs=1, skip_val=True, logdir=logdir)
         finally:
-            # set old callbacks without LRFinder
             self.callbacks = callbacks
-            self.load(str(tmp_path) + "/tmp.h5")
+            self.load(tmp_cp)
+            tmp_cp.unlink()
 
     def _run_epoch(self, epoch, epochs):
         self.callbacks.on_epoch_begin(epoch, epochs, self.state)
