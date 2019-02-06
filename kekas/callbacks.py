@@ -392,6 +392,7 @@ class CheckpointSaverCallback(Callback):
     def on_train_end(self):
         best_cp = self.savedir / self.best_scores[0][1]
         shutil.copy(str(best_cp), f"{self.savedir}/{self.prefix}best.h5")
+        print(f"\nCheckpoint\t{self.metric or 'val_loss'}")
         for score in self.best_scores:
             print(f"{self.savedir/score[1]}\t{score[0]:.6f}")
 
