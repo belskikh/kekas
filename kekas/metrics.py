@@ -3,8 +3,8 @@ import torch
 from sklearn.metrics import accuracy_score
 
 
-def accuracy(target: torch.Tensor,
-             preds: torch.Tensor) -> float:
+def accuracy(target: Type[torch.Tensor],
+             preds: Type[torch.Tensor]) -> float:
     target = target.cpu().detach().numpy()
     # dataparallel workaround
     if isinstance(preds, list):

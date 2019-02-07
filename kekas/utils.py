@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 
-def to_numpy(data: torch.Tensor) -> np.ndarray:
+def to_numpy(data: Type[torch.Tensor]) -> np.ndarray:
     return data.detach().cpu().numpy()
 
 

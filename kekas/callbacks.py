@@ -365,8 +365,8 @@ class MetricsCallback(Callback):
         self.preds_key = preds_key
 
     def update_epoch_metrics(self,
-                             target: torch.Tensor,
-                             preds: torch.Tensor) -> None:
+                             target: Type[torch.Tensor],
+                             preds: Type[torch.Tensor]) -> None:
         for name, m in self.metrics.items():
             value = m(target, preds)
             self.pbar_metrics[name] += value
