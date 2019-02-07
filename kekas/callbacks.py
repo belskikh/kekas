@@ -136,7 +136,7 @@ class OneCycleLR(LRUpdater):
         self.cut_point = None
 
     def on_train_begin(self, state: DotDict) -> None:
-        self.total_iter = self.len_loader * self.cycle_len
+        self.total_iter = self.len_loader * self.cycle_len - 1
         self.cut_point = int(self.total_iter * self.increase_fraction)
 
     def calc_lr(self) -> float:
