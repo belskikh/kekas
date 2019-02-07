@@ -142,8 +142,8 @@ class Keker:
                       increase_fraction: float = 0.3,
                       opt=None,
                       opt_params=None,
-                      logdir: str = None,
-                      save_cp_params: Dict = None,
+                      logdir: Union[str, Path] = None,
+                      cp_saver_params: Dict = None,
                       early_stop_params: Dict = None) -> None:
 
         callbacks = self.callbacks
@@ -161,7 +161,7 @@ class Keker:
                      opt=opt,
                      opt_params=opt_params,
                      logdir=logdir,
-                     cp_saver_params=save_cp_params,
+                     cp_saver_params=cp_saver_params,
                      early_stop_params=early_stop_params)
         finally:
             # set old callbacks without OneCycle

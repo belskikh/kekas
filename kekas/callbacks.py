@@ -162,7 +162,8 @@ class OneCycleLR(LRUpdater):
 
     def on_batch_begin(self, i, state):
         super().on_batch_begin(i, state)
-        self.cycle_iter += 1
+        if state.mode == "train":
+            self.cycle_iter += 1
 
 
 class LRFinder(LRUpdater):
