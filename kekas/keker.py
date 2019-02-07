@@ -269,12 +269,23 @@ class Keker:
 
         self.callbacks = callbacks
 
-    def predict_array(self,
-                      array: np.ndarray) -> np.ndarray:
-        array = torch.from_numpy(array).to(self.device)
+    def predict_tensor(self,
+                       tensor: Type[torch.Tensor],
+                       to_numpy: bool = False) -> Union[Type[torch.Tensor],
+                                                        np.ndarray]:
+        tensor = tensor.to(self.device)
         with torch.set_grad_enabled(False):
-            preds = self.model(array)
+            preds = self.model(tensor)
+        if to_numpy:
+            preds = preds.cpu().numpy()
         return preds
+
+    def predict_array(self,
+                      array: np.ndarray,
+                      to_numpy: bool = False) -> Union[Type[torch.Tensor],
+                                                       np.ndarray]:
+        tensor = torch.from_numpy(array)
+        return self.predict_tensor(tensor, to_numpy)
 
     def TTA(self,
             loader: DataLoader,
