@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, List, Tuple, Dict, Union, Optional
+from typing import Callable, List, Tuple, Type, Dict, Union, Optional
 
 import numpy as np
 
@@ -28,7 +28,7 @@ class Keker:
                  preds_key: str = "logits",
                  criterion: Optional[torch.nn.Module] = None,
                  metrics: Optional[Dict[str, Callable]] = None,
-                 opt: Optional[torch.optim.Optimizer] = None,
+                 opt: Optional[Type[torch.optim.Optimizer]] = None,
                  opt_params: Optional[Dict] = None,
                  device: Optional[torch.device] = None,
                  step_fn: Optional[Callable] = None,
@@ -84,7 +84,7 @@ class Keker:
             lr: float,
             epochs: int,
             skip_val: bool = False,
-            opt: Optional[torch.optim.Optimizer] = None,
+            opt: Optional[Type[torch.optim.Optimizer]] = None,
             opt_params: Optional[Dict] = None,
             sched: Optional[Callable] = None,
             sched_params: Optional[Dict] = None,
@@ -154,7 +154,7 @@ class Keker:
                       momentum_range: Tuple[float, float] = (0.95, 0.85),
                       div_factor: float = 25,
                       increase_fraction: float = 0.3,
-                      opt: Optional[torch.optim.Optimizer] = None,
+                      opt: Optional[Type[torch.optim.Optimizer]] = None,
                       opt_params: Optional[Dict] = None,
                       logdir: Optional[Union[str, Path]] = None,
                       cp_saver_params: Optional[Dict] = None,
@@ -197,7 +197,9 @@ class Keker:
         callbacks = self.callbacks
 
         try:
-            lrfinder_cb = LRFinder(final_lr, init_lr, n_steps)
+            lrfinder_cb = LRFinder(final_lr=final_lr,
+                                   init_lr=init_lr,
+                                   n_steps=n_steps)
 
             self.callbacks = Callbacks(self.core_callbacks + [lrfinder_cb])
             self.kek(lr=init_lr, epochs=1, skip_val=True, logdir=logdir)
