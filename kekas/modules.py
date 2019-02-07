@@ -12,9 +12,13 @@ class Flatten(nn.Module):
 # https://github.com/fastai/fastai/blob/e8c855ac70d9d1968413a75c7e9a0f149d28cab3/fastai/layers.py#L171
 class AdaptiveConcatPool2d(nn.Module):
     "Layer that concats `AdaptiveAvgPool2d` and `AdaptiveMaxPool2d`."
-    def __init__(self, sz:Optional[int]=None):
-        "Output will be 2*sz or 2 if sz is None"
+    def __init__(self,
+                 size: Optional[int] = None):
+        "Output will be 2*size or 2 if size is None"
         super().__init__()
-        sz = sz or 1
-        self.ap,self.mp = nn.AdaptiveAvgPool2d(sz), nn.AdaptiveMaxPool2d(sz)
-    def forward(self, x): return torch.cat([self.mp(x), self.ap(x)], 1)
+        size = size or 1
+        self.ap = nn.AdaptiveAvgPool2d(size)
+        self.mp = nn.AdaptiveMaxPool2d(size)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.cat([self.mp(x), self.ap(x)], 1)

@@ -27,7 +27,7 @@ class Keker:
                  target_key: str = "label",
                  preds_key: str = "logits",
                  criterion: Optional[torch.nn.Module] = None,
-                 metrics: Optional[Dict] = None,
+                 metrics: Optional[Dict[str, Callable]] = None,
                  opt: Optional[torch.optim.Optimizer] = None,
                  opt_params: Optional[Dict] = None,
                  device: Optional[torch.device] = None,
@@ -221,8 +221,8 @@ class Keker:
 
                 self.callbacks.on_batch_end(i, self._state)
 
-                if (self.stop_iter and self._state.mode == "train"
-                        and i == self.stop_iter - 1):
+                if (self._state.stop_iter and self._state.mode == "train"
+                        and i == self._state.stop_iter - 1):
                     # break only in train mode and if early stop is set
                     self._state.stop_epoch = True
 

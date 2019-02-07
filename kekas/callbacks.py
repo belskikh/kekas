@@ -4,7 +4,7 @@ from collections import defaultdict, namedtuple
 from pathlib import Path
 import shutil
 
-from typing import Any, Dict, Tuple, List, Optional, Union
+from typing import Any, Callable, Dict, Tuple, List, Optional, Union
 
 import numpy as np
 
@@ -67,11 +67,11 @@ class Callbacks:
 
     def on_train_begin(self, state: DotDict) -> None:
         for cb in self.callbacks:
-            cb.on_train_begin()
+            cb.on_train_begin(state)
 
     def on_train_end(self, state: DotDict) -> None:
         for cb in self.callbacks:
-            cb.on_train_end()
+            cb.on_train_end(state)
 
 
 class LRUpdater(Callback):
@@ -358,7 +358,7 @@ class MetricsCallback(Callback):
     def __init__(self,
                  target_key: str,
                  preds_key: str,
-                 metrics: Optional[Dict] = None) -> None:
+                 metrics: Optional[Dict[str, Callable]] = None) -> None:
         self.metrics = metrics or {}
         self.pbar_metrics = None
         self.target_key = target_key

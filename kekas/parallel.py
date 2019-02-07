@@ -21,8 +21,8 @@ class Reduce(Function):
         return comm.reduce_add(inputs)
 
     @staticmethod
-    def backward(ctx, gradOutput):
-        return Broadcast.apply(ctx.target_gpus, gradOutput)
+    def backward(ctx, *gradOutput):
+        return Broadcast.apply(ctx.target_gpus, gradOutput[0])
 
 
 class DataParallelModel(Module):
