@@ -32,10 +32,10 @@ class Callback:
     def on_epoch_end(self, epoch, state):
         pass
 
-    def on_train_begin(self):
+    def on_train_begin(self, state):
         pass
 
-    def on_train_end(self):
+    def on_train_end(self, state):
         pass
 
 
@@ -64,11 +64,11 @@ class Callbacks:
         for cb in self.callbacks:
             cb.on_epoch_end(epoch, state)
 
-    def on_train_begin(self):
+    def on_train_begin(self, state):
         for cb in self.callbacks:
             cb.on_train_begin()
 
-    def on_train_end(self):
+    def on_train_end(self, state):
         for cb in self.callbacks:
             cb.on_train_end()
 
@@ -133,7 +133,7 @@ class OneCycleLR(LRUpdater):
         # point in iterations for starting lr decreasing
         self.cut_point = None
 
-    def on_train_begin(self):
+    def on_train_begin(self, state):
         self.total_iter = self.len_loader * self.cycle_len
         self.cut_point = int(self.total_iter * self.increase_fraction)
 
@@ -221,7 +221,7 @@ class TBLogger(Callback):
             self.val_iter += 1
         self.total_iter += 1
 
-    def on_train_begin(self):
+    def on_train_begin(self, state):
         self.train_iter = 0
         self.val_iter = 0
         self.logdir.mkdir(exist_ok=True)
@@ -266,7 +266,7 @@ class TBLogger(Callback):
                                            float(mean),
                                            global_step=epoch)
 
-    def on_train_end(self):
+    def on_train_end(self, state):
         self.train_writer.close()
         self.val_writer.close()
 
@@ -441,7 +441,7 @@ class CheckpointSaverCallback(Callback):
                 if len(self.best_scores) > self.n_best:
                     Path(f"{self.savedir / sorted_scores[-1][1]}").unlink()
 
-    def on_train_end(self):
+    def on_train_end(self, state):
         best_cp = self.savedir / self.best_scores[0][1]
         shutil.copy(str(best_cp), f"{self.savedir}/{self.prefix}best.h5")
         print(f"\nCheckpoint\t{self.metric or 'val_loss'}")
@@ -524,10 +524,10 @@ class DebuggerCallback(Callback):
             if state.mode == "test" and "test" in self.modes:
                 set_trace()
 
-    def on_train_begin(self):
+    def on_train_begin(self, state):
         if "on_train_begin" in self.when:
             set_trace()
 
-    def on_train_end(self):
+    def on_train_end(self, state):
         if "on_train_end" in self.when:
             set_trace()
