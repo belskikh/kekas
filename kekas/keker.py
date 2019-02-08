@@ -1,3 +1,6 @@
+from pdb import set_trace as st
+
+
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable, List, Tuple, Type, Dict, Union, Optional
@@ -14,7 +17,7 @@ from .callbacks import Callback, Callbacks, ProgressBarCallback, \
     EarlyStoppingCallback, SimpleOptimizerCallback
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
-from .utils import DotDict
+from .utils import DotDict, freeze_to, freeze, unfreeze
 
 
 class Keker:
@@ -46,9 +49,11 @@ class Keker:
 
         self._state.criterion = criterion
 
+        self._state.parallel = False
         if torch.cuda.device_count() > 1:
             self._state.model = DataParallelModel(self._state.model)
             self._state.criterion = DataParallelCriterion(self._state.criterion)
+            self._state.parallel = True
 
         self.opt = opt or SGD
         self.opt_params = opt_params or {}
@@ -341,6 +346,36 @@ class Keker:
             self._state.model.eval()
             self._state.loader = self._state.dataowner.test_dl
         self._state.mode = mode
+
+    def freeze_to(self, n: int,
+                  freeze_bn: bool = False,
+                  model_attr: Optional[str] = None) -> None:
+
+        module = self.get_model_attr(model_attr)
+        freeze_to(module, n, freeze_bn)
+
+    def freeze(self,
+               freeze_bn: bool = False,
+               model_attr: Optional[str] = None) -> None:
+        module = self.get_model_attr(model_attr)
+        freeze(module, freeze_bn)
+
+    def unfreeze(self,
+                 model_attr: Optional[str] = None) -> None:
+        module = self.get_model_attr(model_attr)
+        unfreeze(module)
+
+    def get_model_attr(self, model_attr: str):
+        if self._state.parallel:
+            model = self._state.model.module
+        else:
+            model = self._state.model
+
+        if model_attr is not None:
+            module = getattr(model, model_attr)
+        else:
+            module = model
+        return module
 
     @property
     def is_train(self) -> bool:
