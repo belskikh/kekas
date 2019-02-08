@@ -38,7 +38,8 @@ class Keker:
 
         self._state = DotDict()
 
-        self.model = model
+        self._state.model = model
+        self._state.dataowner = dataowner
 
         self.target_key = target_key
         self.preds_key = preds_key
@@ -46,16 +47,15 @@ class Keker:
         self._state.criterion = criterion
 
         if torch.cuda.device_count() > 1:
-            self.model = DataParallelModel(self.model)
+            self._state.model = DataParallelModel(self._state.model)
             self._state.criterion = DataParallelCriterion(self._state.criterion)
 
-        self.dataowner = dataowner
         self.opt = opt or SGD
         self.opt_params = opt_params or {}
         self.device = device or torch.device("cuda" if
                                              torch.cuda.is_available()
                                              else "cpu")
-        self.model.to(self.device)
+        self._state.model.to(self.device)
 
         self.step = step_fn or self.default_step
 
@@ -101,7 +101,7 @@ class Keker:
 
         opt = opt or self.opt
         opt_params = opt_params or self.opt_params
-        self._state.opt = opt(params=self.model.parameters(), lr=lr,
+        self._state.opt = opt(params=self._state.model.parameters(), lr=lr,
                               **opt_params)
         if sched:
             sched_params = sched_params or {}
@@ -163,7 +163,7 @@ class Keker:
         callbacks = self.callbacks
 
         # temporarily add OneCycle callback
-        len_loader = len(self.dataowner.train_dl)
+        len_loader = len(self._state.dataowner.train_dl)
         one_cycle_cb = OneCycleLR(max_lr, cycle_len, len_loader,
                                   momentum_range, div_factor, increase_fraction)
 
@@ -192,7 +192,7 @@ class Keker:
         tmp_cp = logdir / "tmp.h5"
         self.save(tmp_cp)
 
-        n_steps = n_steps or len(self.dataowner.train_dl)
+        n_steps = n_steps or len(self._state.dataowner.train_dl)
 
         callbacks = self.callbacks
 
@@ -241,7 +241,7 @@ class Keker:
 
     def default_step(self) -> Dict[str, torch.Tensor]:
         inp = self._state.batch["image"]
-        logits = self.model(inp)
+        logits = self._state.model(inp)
 
         return {"logits": logits}
 
@@ -251,7 +251,7 @@ class Keker:
             self._run_epoch(1, 1)
 
     def predict_loader(self,
-                       loader: torch.utils.data.DataLoader,
+                       loader: Type[DataLoader],
                        savepath: Union[str, Path]) -> None:
         callbacks = self.callbacks
 
@@ -263,7 +263,7 @@ class Keker:
 
         self._state.mode = "test"
         self._state.loader = loader
-        self.model.eval()
+        self._state.model.eval()
         with torch.set_grad_enabled(False):
             self._run_epoch(1, 1)
 
@@ -276,7 +276,7 @@ class Keker:
         tensor = tensor.to(self.device)
         with torch.set_grad_enabled(False):
             self.set_mode("test")
-            preds = self.model(tensor)
+            preds = self._state.model(tensor)
         if to_numpy:
             preds = preds.cpu().numpy()
         return preds
@@ -289,7 +289,7 @@ class Keker:
         return self.predict_tensor(tensor, to_numpy)
 
     def TTA(self,
-            loader: DataLoader,
+            loader: Type[DataLoader],
             tfms: Union[List, Dict],
             savedir: Union[str, Path],
             prefix: str = "preds") -> None:
@@ -312,17 +312,17 @@ class Keker:
     def save(self, savepath: Union[str, Path]) -> None:
         savepath = Path(savepath)
         savepath.parent.mkdir(exist_ok=True)
-        torch.save(self.model.state_dict(), savepath)
+        torch.save(self._state.model.state_dict(), savepath)
 
     def load(self, loadpath: Union[str, Path]) -> None:
         loadpath = Path(loadpath)
         checkpoint = torch.load(loadpath,
                                 map_location=lambda storage, loc: storage)
-        if not isinstance(self.model, DataParallelModel) \
+        if not isinstance(self._state.model, DataParallelModel) \
                 and "module." in list(checkpoint.keys())[0]:
             # [7:] is to skip 'module.' in group name
             checkpoint = {k[7:]: v for k, v in checkpoint.items()}
-        self.model.load_state_dict(checkpoint)
+        self._state.model.load_state_dict(checkpoint)
 
     def to_device(self,
                   batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
@@ -331,14 +331,14 @@ class Keker:
 
     def set_mode(self, mode: str) -> None:
         if mode == "train":
-            self.model.train()
-            self._state.loader = self.dataowner.train_dl
+            self._state.model.train()
+            self._state.loader = self._state.dataowner.train_dl
         elif mode == "val":
-            self.model.eval()
-            self._state.loader = self.dataowner.val_dl
+            self._state.model.eval()
+            self._state.loader = self._state.dataowner.val_dl
         elif mode == "test":
-            self.model.eval()
-            self._state.loader = self.dataowner.test_dl
+            self._state.model.eval()
+            self._state.loader = self._state.dataowner.test_dl
         self._state.mode = mode
 
     @property
