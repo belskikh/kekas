@@ -1,3 +1,5 @@
+from typing import Type
+
 import torch
 
 from sklearn.metrics import accuracy_score
