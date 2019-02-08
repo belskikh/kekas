@@ -1,6 +1,6 @@
 from functools import reduce
 import sys
-from typing import Any, Dict, Union, Hashable
+from typing import Any, Dict, Union, Hashable, Type
 
 import numpy as np
 from tqdm import tqdm

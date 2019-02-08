@@ -4,7 +4,7 @@ from collections import defaultdict, namedtuple
 from pathlib import Path
 import shutil
 
-from typing import Any, Callable, Dict, Tuple, List, Optional, Union
+from typing import Any, Callable, Dict, Tuple, Type, List, Optional, Union
 
 import numpy as np
 

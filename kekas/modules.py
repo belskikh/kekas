@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Type
 
 import torch
 from torch import nn

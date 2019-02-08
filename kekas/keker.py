@@ -275,6 +275,7 @@ class Keker:
                                                         np.ndarray]:
         tensor = tensor.to(self.device)
         with torch.set_grad_enabled(False):
+            self.set_mode("test")
             preds = self.model(tensor)
         if to_numpy:
             preds = preds.cpu().numpy()
