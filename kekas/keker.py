@@ -101,8 +101,9 @@ class Keker:
 
         opt = opt or self.opt
         opt_params = opt_params or self.opt_params
-        self._state.opt = opt(params=self._state.model.parameters(), lr=lr,
-                              **opt_params)
+        params = (p for p in self._state.model.parameters() if p.requires_grad)
+        self._state.opt = opt(params=params, lr=lr, **opt_params)
+
         if sched:
             sched_params = sched_params or {}
             self._state.sched = sched(optimizer=self._state.opt, **sched_params)
