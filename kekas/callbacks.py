@@ -223,7 +223,7 @@ class TBLogger(Callback):
     def update_total_iter(self, mode: str) -> None:
         if mode == "train":
             self.train_iter += 1
-        if mode == "test":
+        if mode == "val":
             self.val_iter += 1
         self.total_iter += 1
 
@@ -238,7 +238,6 @@ class TBLogger(Callback):
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.mode == "train":
-            self.update_total_iter("train")
             for name, metric in state.metrics["train"].items():
                 self.train_writer.add_scalar(f"batch/{name}",
                                              float(metric),
@@ -250,13 +249,16 @@ class TBLogger(Callback):
                                          float(lr),
                                          global_step=self.train_iter)
 
+            self.update_total_iter(state.mode)
+
         elif state.mode == "val":
-            self.update_total_iter("val")
             for name, metric in state.metrics["val"].items():
                 self.val_writer.add_scalar(f"batch/{name}",
                                            float(metric),
                                            global_step=self.total_iter)
                 self.val_metrics[name].append(float(metric))
+
+            self.update_total_iter(state.mode)
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         if state.mode == "train":
