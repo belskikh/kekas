@@ -1,14 +1,85 @@
+from pdb import set_trace as st
+
 from functools import reduce
 import sys
-from typing import Any, Dict, Union, Hashable, Type
+from typing import Any, Dict, Union, Hashable, Type, List
 
 import numpy as np
 from tqdm import tqdm
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
-def to_numpy(data: Type[torch.Tensor]) -> np.ndarray:
+
+BN_TYPES = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)
+
+
+def freeze_to(module: nn.Module,
+              n: int,
+              freeze_bn: bool = False) -> None:
+    layers = list(module.children())
+    for l in layers[:n]:
+        for module in flatten_layer(l):
+            if freeze_bn or not isinstance(module, BN_TYPES):
+                set_grad(module, requires_grad=False)
+
+    for l in layers[n:]:
+        for module in flatten_layer(l):
+            set_grad(module, requires_grad=True)
+
+
+def freeze(module: nn.Module,
+           freeze_bn: bool = False) -> None:
+    freeze_to(module=module, n=-1, freeze_bn=freeze_bn)
+
+
+def unfreeze(module: nn.Module) -> None:
+    layers = list(module.children())
+    for l in layers:
+        for module in flatten_layer(l):
+            set_grad(module, requires_grad=True)
+
+
+def set_grad(module: nn.Module, requires_grad: bool) -> None:
+    for param in module.parameters():
+        param.requires_grad = requires_grad
+
+
+# https://github.com/fastai/fastai/blob/6778fd518e95ea8e1ce1e31a2f96590ee254542c/fastai/torch_core.py#L157
+class ParameterModule(nn.Module):
+    """Register a lone parameter `p` in a module."""
+    def __init__(self, p: nn.Parameter):
+        super().__init__()
+        self.val = p
+
+    def forward(self, x): return x
+
+
+# https://github.com/fastai/fastai/blob/6778fd518e95ea8e1ce1e31a2f96590ee254542c/fastai/torch_core.py#L149
+def children_and_parameters(m: nn.Module):
+    """Return the children of `m` and its direct parameters not registered in modules."""
+    children = list(m.children())
+    children_p = sum([[id(p) for p in c.parameters()] for c in m.children()],
+                     [])
+    for p in m.parameters():
+        if id(p) not in children_p:
+            st()
+            children.append(ParameterModule(p))
+    return children
+
+
+def flatten_layer(layer: nn.Module) -> List[nn.Module]:
+    if len(list(layer.children())):
+        layers = []
+        for children in children_and_parameters(layer):
+            layers += flatten_layer(children)
+        return layers
+    else:
+        return [layer]
+
+
+def to_numpy(data: torch.Tensor) -> np.ndarray:
     return data.detach().cpu().numpy()
 
 
