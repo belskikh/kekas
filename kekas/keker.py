@@ -21,9 +21,49 @@ from .utils import DotDict, freeze_to, freeze, unfreeze
 
 
 class Keker:
-    ''' The core class that proivdes main methods for training and
-    predicting on given model and dataset
-    '''
+    """ The class serving the whole train-val-predict process.
+
+    Args:
+        model: The neural network for train/val/predict.
+        dataowner: The namedtuple container of train/val/test dataloaders.
+        tarket_key: The target/label key for batch-dict from dataloader.
+            The dataloader returns batch as a dict on each iteration,
+            that contains input data and target labels. This is key is for
+            access to target labels in this dict.
+        preds_key: The key for dict from self.step() functions.
+            The self.step() function returns dict of predictions on each batch.
+            This key is for access to predictions in this dict.
+        criterion: The loss function (ex. : torch.nn.CrossEntropyLoss())
+        metrics: {"name": metric_function} dict, that contains callable metrics
+            for calculating. A metric takes target and predictions
+            tensors as parameters, and returns float.
+            For examples see kekas.metrics module.
+        opt: pytorch Optimizer class (ex. torch.optim.SGD, torch.optm.Adam, etc)
+            This optimizer will be used as default during training.
+            Default optimizer is torch.optim.SGD.
+        opt_params: The kwargs dict for optimizer initialization.
+            It should contain any optimizer param you want EXCEPT learning rate,
+            learing rate is specified in self.kek* methods.
+        device: The torch.device when you want to put your model
+        step_fn: The function that will be called at every batch of your data.
+            Take a `self` as a parameter. In this function you define
+            what you do with your batch. You get access to batch through
+            self._state.batch object. Batch is a dict returned from your
+            dataloader, and its key and values are specified in reader_function
+            for DataKek.
+            Return a dict that should contain batch predictions with access
+            by `preds_key`.
+            For example see self.default_step method and example ipynbs.
+        loss_cb: The Callback for loss calculation. Define how to calculate loss
+            and store loss value in self._state.loss attr.
+            Default loss callback is SimpleLossCallback.
+            For examples see kekas.callbacks.
+        opt_cb: The Callback for optimizer applying.
+            Default optimizer callback is SimpleOptimizerCallback.
+            For examples see kekas.callbacks.
+        callbacks: custom Callbacks thet will be applied before the core ones.
+            For examples see example ipynbs.
+    """
     def __init__(self,
                  model: torch.nn.Module,
                  dataowner: DataOwner,
@@ -39,6 +79,16 @@ class Keker:
                  opt_cb: Optional[Callback] = None,
                  callbacks: Optional[Union[List, Callbacks]] = None) -> None:
 
+        # The _state is an object that stores many variables and represents
+        # the state of your train-val-repdict pipeline. _state passed to every
+        # callback call.
+        # You can use it as a container for your custom variables, but
+        # DO NOT USE the following ones:
+        #
+        # loss, batch, model, dataowner, criterion, opt, parallel, checkpoint,
+        # stop_iter, stop_epoch, stop_train, out, sched, mode, loader, pbar,
+        # metrics, epoch_metrics
+        #
         self._state = DotDict()
 
         self._state.model = model
@@ -64,6 +114,8 @@ class Keker:
 
         self.step = step_fn or self.default_step
 
+        # the core callbacks for train-val-predict are determined here.
+        # the order of callbacks is matters!
         loss_cb = loss_cb or SimpleLossCallback(target_key, preds_key)
         opt_cb = opt_cb or SimpleOptimizerCallback()
         metrics_cb = MetricsCallback(target_key, preds_key, metrics)
@@ -79,10 +131,17 @@ class Keker:
 
         self._state.checkpoint = ""
 
+        # The number of batch in dataloader for iteration stop,
+        # determined in self.kek* methods.
         self._state.stop_iter = None
+
+        # flag for train stop after batch.
         self._state.stop_epoch = False
+
+        # flag for stop the whole train, used for early stopping.
         self._state.stop_train = False
 
+        # The scheduler attribute. Scheduler is determined in self.kek* methods.
         self._state.sched = None
 
     def kek(self,
