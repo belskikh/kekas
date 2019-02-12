@@ -1,6 +1,3 @@
-from pdb import set_trace as st
-
-
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable, List, Tuple, Type, Dict, Union, Optional
@@ -157,10 +154,46 @@ class Keker:
             logdir: Optional[Union[str, Path]] = None,
             cp_saver_params: Optional[Dict] = None,
             early_stop_params: Optional[Dict] = None) -> None:
+        """Keks your model to the moon.
+
+        Conducts a standard train-val procedure with several options for
+        customization.
+
+        Args:
+            lr: learining rate
+            epochs: number of epochs to train
+            opt: torch optimizer. If specified, than specified optimizer will be
+                used for this train-val procedure, else the default one.
+            opt_params: The kwargs dict for custom optimizer initialization.
+                It should contain any opt params you want EXCEPT learning rate,
+                Can be defined even for default optimizer.
+            sched: optional pytorch scheduler class. If specified, sched_params
+                must be specified too.
+                Ex: torch.optim.lr_scheduler.StepLR.
+            sched_params: kwargs dict parameters for scheduler
+            sched_reduce_metric: a unique parameter for ReduceLROnPlateau.
+                Defines a metric to watch for learning rate reducing.
+                If ReduceLROnPlateau used, but no sched_reduce_metric provided,
+                then 'val_loss' metric is used. Else, it should be one of
+                the metrics dict keys.
+            stop_iter: number of batch when you want to end an epoch
+            logdir: If provided, the TBLogger will be created and tensorboard
+                logs will be written in this directory.
+                For more info see kekas.callbacks.TBLogger and example ipynb's.
+            cp_saver_params: kwargs dict parameters for CheckpointSaverCallback.
+                If provided, then a CheckpointSaverCallback will be created.
+                For more info see kekas.callbacks.CheckpointSaverCallback
+                and example ipynb's.
+            early_stop_params: kwargs dict parameters for EarlyStoppingCallback.
+                If provided, then a EarlyStoppingCallback will be created.
+                For more info see kekas.callbacks.EarlyStoppingCallback
+                and example ipynb's.
+        """
 
         if stop_iter:
             self.stop_iter = stop_iter
 
+        # save callbacks
         callbacks = self.callbacks
 
         opt = opt or self.opt
@@ -191,7 +224,7 @@ class Keker:
             early_stop_cb = EarlyStoppingCallback(**early_stop_params)
             self.callbacks = Callbacks(self.callbacks.callbacks + [early_stop_cb])
 
-        # try-finally to properly close progress bar
+        # try-finally to properly close progress bar and restore callbacks
         try:
             self.callbacks.on_train_begin(self._state)
 
@@ -224,6 +257,40 @@ class Keker:
                       logdir: Optional[Union[str, Path]] = None,
                       cp_saver_params: Optional[Dict] = None,
                       early_stop_params: Optional[Dict] = None) -> None:
+        """Kek your model to the moon with One Cycle policy!
+
+        Conducts a one-cycle train-val procedure with several options for
+        customization.
+        For info about One Cycle policy please see:
+        https://arxiv.org/abs/1803.09820
+        https://sgugger.github.io/the-1cycle-policy.html
+
+        Args:
+            max_lr: the maximum learning rate that will be achieved during
+                training process
+            cycle_len: the number of full passes through the training dataset.
+                It is quite similar to epochs number
+            momentum_range: the range of optimizers momentum changes
+            div_factor: is equal to max_lr / min_lr during one-cycle training
+            increase_fraction: the fraction of the whole iterations during which
+                the learning rate will increase
+            opt: torch optimizer. If specified, than specified optimizer will be
+                used for this train-val procedure, else the default one.
+            opt_params: The kwargs dict for custom optimizer initialization.
+                It should contain any opt params you want EXCEPT learning rate,
+                Can be defined even for default optimizer.
+            logdir: If provided, the TBLogger will be created and tensorboard
+                logs will be written in this directory.
+                For more info see kekas.callbacks.TBLogger and example ipynb's.
+            cp_saver_params: kwargs dict parameters for CheckpointSaverCallback.
+                If provided, then a CheckpointSaverCallback will be created.
+                For more info see kekas.callbacks.CheckpointSaverCallback
+                and example ipynb's.
+            early_stop_params: kwargs dict parameters for EarlyStoppingCallback.
+                If provided, then a EarlyStoppingCallback will be created.
+                For more info see kekas.callbacks.EarlyStoppingCallback
+                and example ipynb's.
+        """
 
         callbacks = self.callbacks
 
@@ -251,6 +318,22 @@ class Keker:
                logdir: Union[str, Path],
                init_lr: float = 1e-6,
                n_steps: Optional[int] = None) -> None:
+        """Help you kek your model to the moon by finding "optimal" lr!
+
+        Conducts the learning rate find procedure.
+        For info please see:
+        https://arxiv.org/abs/1803.09820
+        https://sgugger.github.io/how-do-you-find-a-good-learning-rate.html
+
+        Args:
+            final_lr: the learning rate at the end of the lr find process
+            logdir: the directory for tensorboard logs, that will allow you
+                analyze the loss dynamic.
+            init_lr: the learning rate at the start of the lr find process
+            n_steps: the number of iterations of lr find process. If provided
+                finding process will stop at this iteration, else lr find
+                process will last one epoch
+        """
 
         logdir = Path(logdir)
         logdir.mkdir(exist_ok=True)
@@ -276,6 +359,12 @@ class Keker:
     def _run_epoch(self,
                    epoch: int,
                    epochs: int) -> None:
+        """Run one epoch of train-val procedure
+
+        Args:
+            epoch: number of the current epoch
+            epochs: total number of epochs
+        """
         self.callbacks.on_epoch_begin(epoch, epochs, self._state)
 
         with torch.set_grad_enabled(self.is_train):
@@ -305,19 +394,45 @@ class Keker:
             self._state.checkpoint = ""
 
     def default_step(self) -> Dict[str, torch.Tensor]:
+        """The default step function.
+        Determine what your model will do with your data.
+
+        Returns:
+            the dict that contains prediction tensor for the batch.
+        """
         inp = self._state.batch["image"]
         logits = self._state.model(inp)
 
         return {"logits": logits}
 
-    def predict(self) -> None:
+    def predict(self, savepath: Union[str, Path]) -> None:
+        """Infer the model on test dataloader and saves prediction as numpy array
+
+        Args:
+            savepath: the directory to save predictions
+        """
+        callbacks = self.callbacks
+
+        tmp_callbacks = Callbacks([ProgressBarCallback(),
+                                   PredictionsSaverCallback(savepath,
+                                                            self.preds_key)])
+
+        self.callbacks = tmp_callbacks
         self.set_mode("test")
         with torch.set_grad_enabled(False):
             self._run_epoch(1, 1)
 
+        self.callbacks = callbacks
+
     def predict_loader(self,
                        loader: Type[DataLoader],
                        savepath: Union[str, Path]) -> None:
+        """Infer the model on dataloader and saves prediction as numpy array
+
+        Args:
+            loader: the dataloader for generating predictions
+            savepath: the directory to save predictions
+        """
         callbacks = self.callbacks
 
         tmp_callbacks = Callbacks([ProgressBarCallback(),
@@ -338,6 +453,16 @@ class Keker:
                        tensor: Type[torch.Tensor],
                        to_numpy: bool = False) -> Union[Type[torch.Tensor],
                                                         np.ndarray]:
+        """Infer the model on one torch Tensor.
+
+        Args:
+            tensor: torch tensor to predict on.
+                Should has [batch_size, *(one_sample_shape)] shape
+            to_numpy: if True, converts predictions to numpy array
+
+        Returns:
+            Predictions on input tensor.
+        """
         tensor = tensor.to(self.device)
         with torch.set_grad_enabled(False):
             self.set_mode("test")
@@ -350,6 +475,16 @@ class Keker:
                       array: np.ndarray,
                       to_numpy: bool = False) -> Union[Type[torch.Tensor],
                                                        np.ndarray]:
+        """Infer the model on one numpy array.
+
+        Args:
+            array: numpy array to predict on.
+                Should has [batch_size, *(one_sample_shape)] shape
+            to_numpy: if True, converts predictions to numpy array
+
+        Returns:
+            Predictions on input tensor.
+        """
         tensor = torch.from_numpy(array)
         return self.predict_tensor(tensor, to_numpy)
 
@@ -358,14 +493,28 @@ class Keker:
             tfms: Union[List, Dict],
             savedir: Union[str, Path],
             prefix: str = "preds") -> None:
+        """Conduct the test-time augmentations procedure.
 
+        Create predictions for each set of provided transformations and saves
+        each prediction in savedir as a numpy arrays.
+
+        Args:
+            loader: loader to predict
+            tfms: the list with torchvision.transforms or
+                  the dict with {"name": torchvision.transforms} pairs.
+                  List indexes or dict keys will be used for generating
+                  predictions names.
+            savedir: the directory to save predictions
+            prefix: the prefix for predictions files names
+        """
         if isinstance(tfms, dict):
             names = [f"{prefix}_{k}.npy" for k in tfms]
             tfms = tfms.values()
         elif isinstance(tfms, list):
             names = [f"{prefix}_{i}.npy" for i in range(len(tfms))]
         else:
-            raise ValueError(f"Transforms should be List or Dict, got {type(tfms)}")
+            raise ValueError(f"Transforms should be List or Dict, "
+                             f"got {type(tfms)}")
 
         default_tfms = loader.dataset.transforms
         for name, tfm in zip(names, tfms):
@@ -375,14 +524,26 @@ class Keker:
         loader.dataset.transforms = default_tfms
 
     def save(self, savepath: Union[str, Path]) -> None:
+        """Save models state dict on the specified path.
+
+        Args:
+            savepath: the path to save the state dict.
+        """
         savepath = Path(savepath)
         savepath.parent.mkdir(exist_ok=True)
         torch.save(self._state.model.state_dict(), savepath)
 
     def load(self, loadpath: Union[str, Path]) -> None:
+        """Loads models state dict from the specified path.
+
+        Args:
+            loadpath: the path from which the state dict will be loaded.
+        """
         loadpath = Path(loadpath)
         checkpoint = torch.load(loadpath,
                                 map_location=lambda storage, loc: storage)
+
+        # workaround DataParallelModel
         if not isinstance(self._state.model, DataParallelModel) \
                 and "module." in list(checkpoint.keys())[0]:
             # [7:] is to skip 'module.' in group name
@@ -391,10 +552,23 @@ class Keker:
 
     def to_device(self,
                   batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        """Moves tensors in batch to self.device.
+
+        Args:
+            batch: the batch dict.
+
+        Returns:
+            The batch dict with tensors on self.device.
+        """
         return {k: v.to(self.device) for k, v in batch.items()
                 if hasattr(v, "to")}
 
     def set_mode(self, mode: str) -> None:
+        """Set the model to train or val and switch dataloaders
+
+        Args:
+            mode: 'train', 'val' or 'test', the mode of training procedure.
+        """
         if mode == "train":
             self._state.model.train()
             self._state.loader = self._state.dataowner.train_dl
@@ -406,9 +580,19 @@ class Keker:
             self._state.loader = self._state.dataowner.test_dl
         self._state.mode = mode
 
-    def freeze_to(self, n: int,
+    def freeze_to(self,
+                  n: int,
                   freeze_bn: bool = False,
                   model_attr: Optional[str] = None) -> None:
+        """Freeze model or model's part till specified layer.
+
+        Args:
+            n: the layer number to freeze to
+            freeze_bn: if True batchnorm layers will be frozen too
+            model_attr: the name of the model attribute if you want to specify
+                when you want to freeze layers.
+                For examples see example ipynb's.
+        """
 
         module = self.get_model_attr(model_attr)
         freeze_to(module, n, freeze_bn)
@@ -416,15 +600,39 @@ class Keker:
     def freeze(self,
                freeze_bn: bool = False,
                model_attr: Optional[str] = None) -> None:
+        """Freeze model or model's part till the last layer
+
+        Args:
+            freeze_bn: if True batchnorm layers will be frozen too
+            model_attr: the name of the model attribute if you want to specify
+                when you want to freeze layers.
+                For examples see example ipynb's.
+        """
         module = self.get_model_attr(model_attr)
         freeze(module, freeze_bn)
 
     def unfreeze(self,
                  model_attr: Optional[str] = None) -> None:
+        """Unfreeze all model or model's part layers.
+
+        Args:
+            model_attr: the name of the model attribute if you want to specify
+                when you want to freeze layers.
+                For examples see example ipynb's.
+        """
         module = self.get_model_attr(model_attr)
         unfreeze(module)
 
-    def get_model_attr(self, model_attr: str):
+    def get_model_attr(self, model_attr: Union[str, None]) -> torch.nn.Module:
+        """Get models attribute by name or return the model if name is None.
+
+        Args:
+            model_attr: models attribute name to get. If none, than the model
+                will be returned.
+
+        Returns:
+            The models attribute or the model itself.
+        """
         if self._state.parallel:
             model = self._state.model.module
         else:
