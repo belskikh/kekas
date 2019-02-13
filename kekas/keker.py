@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, List, Tuple, Type, Dict, Union, Optional
+from typing import Any, Callable, List, Tuple, Type, Dict, Union, Optional
 
 import numpy as np
 
@@ -30,7 +30,11 @@ class Keker:
         preds_key: The key for dict from self.step() functions.
             The self.step() function returns dict of predictions on each batch.
             This key is for access to predictions in this dict.
-        criterion: The loss function (ex. : torch.nn.CrossEntropyLoss())
+        criterion: The loss function or the dict {'name': loss function}
+            in case of multiple loss setup. If multiple loss is using,
+            loss_cb should be provided.
+            (ex. : torch.nn.CrossEntropyLoss(),
+            {"ce": torch.nn.CrossEntropyLoss(), "bce": torch.nn.BCE()})
         metrics: {"name": metric_function} dict, that contains callable metrics
             for calculating. A metric takes target and predictions
             tensors as parameters, and returns float.
@@ -64,9 +68,9 @@ class Keker:
     def __init__(self,
                  model: torch.nn.Module,
                  dataowner: DataOwner,
+                 criterion: Union[torch.nn.Module, Dict[str, torch.nn.Module]],
                  target_key: str = "label",
                  preds_key: str = "logits",
-                 criterion: Optional[torch.nn.Module] = None,
                  metrics: Optional[Dict[str, Callable]] = None,
                  opt: Optional[Type[torch.optim.Optimizer]] = None,
                  opt_params: Optional[Dict] = None,
@@ -425,7 +429,7 @@ class Keker:
         self.callbacks = callbacks
 
     def predict_loader(self,
-                       loader: Type[DataLoader],
+                       loader: DataLoader,
                        savepath: Union[str, Path]) -> None:
         """Infer the model on dataloader and saves prediction as numpy array
 
@@ -489,7 +493,7 @@ class Keker:
         return self.predict_tensor(tensor, to_numpy)
 
     def TTA(self,
-            loader: Type[DataLoader],
+            loader: DataLoader,
             tfms: Union[List, Dict],
             savedir: Union[str, Path],
             prefix: str = "preds") -> None:
