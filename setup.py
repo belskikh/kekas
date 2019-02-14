@@ -4,12 +4,9 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open("./requirements.txt", "r") as f:
-    requirements = f.read()
-
 setuptools.setup(
     name="kekas",
-    version="0.1.3",
+    version="0.1.4",
     author="Aleksandr Belskikh",
     author_email="belskikh.aleksandr@gmail.com",
     description="Jast another DL library.",
@@ -23,5 +20,13 @@ setuptools.setup(
     ],
     license="MIT",
     python_requires=">=3.6.0",
-    install_requires=requirements
+    install_requires=[
+        "pandas>=0.22",
+        "numpy>=1.14.6",
+        "tensorboardX>=1.6",
+        "torch>=0.4.1",
+        "torchvision>=0.2.1",
+        "tqdm>=4.29.1",
+        "scikit-learn>=0.20"
+    ]
 )

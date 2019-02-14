@@ -15,7 +15,7 @@ I tried to keep it as simple as possible.
 # Features
 
 - Awesome name
-- Learing Rate Finder
+- Learning Rate Finder
 - One Cycle policy
 - Checkpoints saving
 - Early stopping
