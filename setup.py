@@ -1,9 +1,13 @@
+import os
 import setuptools
+
+
+ROOT = os.path.abspath(os.path.dirname(__file__))
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open("../requirements.txt", "r") as f:
+with open(os.path.join(ROOT, "requirements.txt"), "r") as f:
     requirements = f.read()
 
 setuptools.setup(
