@@ -12,7 +12,7 @@ with open(os.path.join(ROOT, "requirements.txt"), "r") as f:
 
 setuptools.setup(
     name="kekas",
-    version="0.1.1",
+    version="0.1.2",
     author="Aleksandr Belskikh",
     author_email="belskikh.aleksandr@gmail.com",
     description="Jast another DL library.",
