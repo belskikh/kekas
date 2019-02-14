@@ -301,9 +301,8 @@ class SimpleOptimizerCallback(Callback):
 
 class SimpleSchedulerCallback(Callback):
     def __init__(self,
-                 sched: Union[_LRScheduler, ReduceLROnPlateau],
-                 metric: Optional[str] = None) -> None:
-        self.metric = metric or "val_loss"
+                 sched: Union[_LRScheduler, ReduceLROnPlateau]) -> None:
+        self.metric = "val_loss"
         if isinstance(sched, ReduceLROnPlateau):
             self.when = "on_epoch_end"
         else:
@@ -323,6 +322,8 @@ class ProgressBarCallback(Callback):
         self.running_loss = None
 
     def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
+        self.running_loss = None
+
         loader = state.loader
         if state.mode == "train":
             description = f"Epoch {epoch+1}/{epochs}"
@@ -407,7 +408,7 @@ class PredictionsSaverCallback(Callback):
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.mode == "test":
-            out = state.out[self.preds_key]
+            out = state.out[self.preds_key].cpu().numpy()
             # DataParallelModel workaround
             if isinstance(out, list):
                 out = np.concatenate([to_numpy(o) for o in out])
@@ -429,7 +430,7 @@ class CheckpointSaverCallback(Callback):
         self.metric = metric or "val_loss"
         self.n_best = n_best
         self.savedir = Path(savedir)
-        self.prefix = prefix or "checkpoint."
+        self.prefix = f"{prefix}." or "checkpoint."
 
         if mode not in ["min", "max"]:
             raise ValueError(f"mode should be 'min' or 'max', got {mode}")
@@ -446,7 +447,7 @@ class CheckpointSaverCallback(Callback):
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         if state.mode == "val":
-            score_val = state.epoch_metrics["val_loss"]
+            score_val = state.epoch_metrics[self.metric]
             score_name = f"{self.prefix}{epoch + 1}.h5"
             score = (score_val, score_name)
             sorted_scores = sorted(self.best_scores + [score],

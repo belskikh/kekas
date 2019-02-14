@@ -15,6 +15,7 @@ class Transformer:
 
     def __call__(self,
                  datum: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        datum = datum
         datum[self.key] = self.transform_fn(datum[self.key])
         return datum
 
