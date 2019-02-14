@@ -1,0 +1,7 @@
+pandas>=0.22
+numpy>=1.14.6
+tensorboardX>=1.6
+torch>=0.4.1
+torchvision>=0.2.1
+tqdm>=4.29.1
+scikit-learn>=0.20
