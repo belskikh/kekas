@@ -2,17 +2,15 @@ import os
 import setuptools
 
 
-ROOT = os.path.abspath(os.path.dirname(__file__))
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open(os.path.join(ROOT, "requirements.txt"), "r") as f:
+with open("./requirements.txt", "r") as f:
     requirements = f.read()
 
 setuptools.setup(
     name="kekas",
-    version="0.1.2",
+    version="0.1.3",
     author="Aleksandr Belskikh",
     author_email="belskikh.aleksandr@gmail.com",
     description="Jast another DL library.",
