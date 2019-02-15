@@ -17,11 +17,12 @@ I tried to keep it as simple as possible.
 - Awesome name
 - Learning Rate Finder
 - One Cycle policy
-- Checkpoints saving
+- Best checkpoints saving
 - Early stopping
 - TTA
+- Freeze / unfreeze
 - Easy customization
-
+    
 # Quick start guide
 
 I don't beieve in quick start guides, I think that they create more questions 
