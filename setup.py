@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="kekas",
-    version="0.1.5",
+    version="0.1.6",
     author="Aleksandr Belskikh",
     author_email="belskikh.aleksandr@gmail.com",
     description="Jast another DL library.",
@@ -20,6 +20,7 @@ setuptools.setup(
     ],
     license="MIT",
     python_requires=">=3.6.0",
+    packages=setuptools.find_packages(),
     install_requires=[
         "pandas>=0.22",
         "numpy>=1.14.6",
