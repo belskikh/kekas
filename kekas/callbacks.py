@@ -430,7 +430,7 @@ class CheckpointSaverCallback(Callback):
         self.metric = metric or "val_loss"
         self.n_best = n_best
         self.savedir = Path(savedir)
-        self.prefix = f"{prefix}." or "checkpoint."
+        self.prefix = f"{prefix}." if prefix is not None else "checkpoint."
 
         if mode not in ["min", "max"]:
             raise ValueError(f"mode should be 'min' or 'max', got {mode}")
@@ -453,10 +453,12 @@ class CheckpointSaverCallback(Callback):
             sorted_scores = sorted(self.best_scores + [score],
                                    reverse=self.maximize)
             self.best_scores = sorted_scores[:self.n_best]
+            # set_trace()
             if score_name in (s[1] for s in self.best_scores):
                 state.checkpoint = f"{self.savedir / score_name}"
                 # remove worst checkpoint
-                if len(self.best_scores) > self.n_best:
+                if len(sorted_scores) > self.n_best:
+                    # set_trace()
                     Path(f"{self.savedir / sorted_scores[-1][1]}").unlink()
 
     def on_train_end(self, state: DotDict) -> None:
