@@ -31,6 +31,8 @@ class Keker:
         preds_key: The key for dict from self.step() functions.
             The self.step() function returns dict of predictions on each batch.
             This key is for access to predictions in this dict.
+            This attribute is optional in default behavior but coulb be used
+            in case of using custom callbacks.
         criterion: The loss function or the dict {'name': loss function}
             in case of multiple loss setup. If multiple loss is using,
             loss_cb should be provided.
@@ -71,7 +73,7 @@ class Keker:
                  dataowner: DataOwner,
                  criterion: Union[torch.nn.Module, Dict[str, torch.nn.Module]],
                  target_key: str = "label",
-                 preds_key: str = "logits",
+                 preds_key: str = "preds",
                  metrics: Optional[Dict[str, Callable]] = None,
                  opt: Optional[Type[torch.optim.Optimizer]] = None,
                  opt_params: Optional[Dict] = None,
@@ -118,9 +120,9 @@ class Keker:
 
         # the core callbacks for train-val-predict are determined here.
         # the order of callbacks is matters!
-        loss_cb = loss_cb or SimpleLossCallback(target_key, preds_key)
+        loss_cb = loss_cb or SimpleLossCallback(target_key, self.preds_key)
         opt_cb = opt_cb or SimpleOptimizerCallback()
-        metrics_cb = MetricsCallback(target_key, preds_key, metrics)
+        metrics_cb = MetricsCallback(target_key, self.preds_key, metrics)
 
         callbacks = callbacks or []
         self.core_callbacks = callbacks + [loss_cb,
