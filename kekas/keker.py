@@ -347,7 +347,10 @@ class Keker:
         tmp_cp = logdir / "tmp.h5"
         self.save(tmp_cp)
 
-        n_steps = n_steps or len(self.state.dataowner.train_dl)
+
+        len_loader = len(self.state.dataowner.train_dl)
+        n_steps = max(n_steps if n_steps is not None else 0, len_loader)
+        n_epochs = max(1, int(np.ceil(n_steps / len_loader)))
 
         callbacks = self.callbacks
 
@@ -357,7 +360,7 @@ class Keker:
                                    n_steps=n_steps)
 
             self.callbacks = Callbacks(self.core_callbacks + [lrfinder_cb])
-            self.kek(lr=init_lr, epochs=1, skip_val=True, logdir=logdir,
+            self.kek(lr=init_lr, epochs=n_epochs, skip_val=True, logdir=logdir,
                      opt=opt, opt_params=opt_params)
         finally:
             self.callbacks = callbacks
