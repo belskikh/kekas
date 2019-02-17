@@ -217,6 +217,7 @@ class TBLogger(Callback):
         self.total_iter = 0
         self.train_iter = 0
         self.val_iter = 0
+        self.val_batch_iter = 0
         self.train_metrics = defaultdict(list)
         self.val_metrics = defaultdict(list)
 
@@ -225,6 +226,7 @@ class TBLogger(Callback):
             self.train_iter += 1
         if mode == "val":
             self.val_iter += 1
+            self.val_batch_iter +=1
         self.total_iter += 1
 
     def on_train_begin(self, state: DotDict) -> None:
@@ -235,6 +237,9 @@ class TBLogger(Callback):
         self.val_writer = SummaryWriter(str(self.logdir / "val"))
         self.train_metrics = defaultdict(list)
         self.val_metrics = defaultdict(list)
+
+    def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict):
+        self.val_batch_iter = 0
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.mode == "train":
@@ -268,8 +273,8 @@ class TBLogger(Callback):
                                              float(mean),
                                              global_step=epoch)
         if state.mode == "val":
-            for name, metric in self.train_metrics.items():
-                mean = np.mean(metric)
+            for name, metric in self.val_metrics.items():
+                mean = np.mean(metric[-self.val_batch_iter:])  # last epochs vals
                 self.val_writer.add_scalar(f"epoch/{name}",
                                            float(mean),
                                            global_step=epoch)
@@ -351,7 +356,6 @@ class ProgressBarCallback(Callback):
             metrics = state.get("epoch_metrics", {})
             state.pbar.set_postfix_str(extend_postfix(state.pbar.postfix,
                                                       metrics))
-            # set_trace()
             state.pbar.close()
         elif state.mode == "test":
             state.pbar.close()
