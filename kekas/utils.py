@@ -147,3 +147,16 @@ class DotDict(dict):
     def __delitem__(self, key: str) -> None:
         super().__delitem__(key)
         del self.__dict__[key]
+
+
+def load_state_dict(model, state_dict, ignore_errors=True):
+    model_state_dict = model.state_dict()
+
+    for key in state_dict:
+        if key in model_state_dict and model_state_dict[key].shape == state_dict[key].shape:
+            if ignore_errors:
+                model_state_dict[key] = state_dict[key]
+            else:
+                raise Exception("Shapes do not match")
+
+    model.load_state_dict(model_state_dict)
