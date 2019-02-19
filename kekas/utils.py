@@ -105,6 +105,8 @@ def get_pbar(dataloader: DataLoader,
 
 
 def extend_postfix(postfix: str, dct: Dict) -> str:
+    if postfix is None:
+        postfix = ""
     postfixes = [postfix] + [f"{k}={v:.4f}" for k, v in dct.items()]
     return ", ".join(postfixes)
 

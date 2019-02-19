@@ -375,7 +375,7 @@ class MetricsCallback(Callback):
                              target: Type[torch.Tensor],
                              preds: Type[torch.Tensor]) -> None:
         for name, m in self.metrics.items():
-            value = m(target, preds)
+            value = m(preds, target)
             self.pbar_metrics[name] += value
 
     def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
@@ -390,8 +390,9 @@ class MetricsCallback(Callback):
         if state.mode != "test" and state.do_log:
             state.metrics[state.mode]["loss"] = float(to_numpy(state.loss))
             for name, m in self.metrics.items():
-                value = m(target=state.batch[self.target_key],
-                          preds=state.out[self.preds_key])
+                preds = state.out[self.preds_key]
+                target = state.batch[self.target_key]
+                value = m(preds, target)
                 state.metrics[state.mode][name] = value
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
