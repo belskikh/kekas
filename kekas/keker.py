@@ -15,7 +15,7 @@ from .callbacks import Callback, Callbacks, ProgressBarCallback, \
     EarlyStoppingCallback, SimpleOptimizerCallback
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
-from .utils import DotDict, freeze_to, freeze, unfreeze
+from .utils import DotDict, freeze_to, freeze, unfreeze, load_state_dict
 
 
 class Keker:
@@ -559,11 +559,16 @@ class Keker:
         savepath.parent.mkdir(exist_ok=True)
         torch.save(self.state.model.state_dict(), savepath)
 
-    def load(self, loadpath: Union[str, Path]) -> None:
+    def load(self,
+             loadpath: Union[str, Path],
+             ignore_errors: bool = False) -> None:
         """Loads models state dict from the specified path.
 
         Args:
             loadpath: the path from which the state dict will be loaded.
+            ignore_errors: If False, will raise an exception if checkpoints
+                weigths doesn't match models weights.
+                If True, will skip unmatched weights and load only matched.
         """
         loadpath = Path(loadpath)
         checkpoint = torch.load(loadpath,
@@ -574,7 +579,10 @@ class Keker:
                 and "module." in list(checkpoint.keys())[0]:
             # [7:] is to skip 'module.' in group name
             checkpoint = {k[7:]: v for k, v in checkpoint.items()}
-        self.state.model.load_state_dict(checkpoint)
+
+        load_state_dict(model=self.state.model,
+                        state_dict=checkpoint,
+                        ignore_errors=ignore_errors)
 
     def to_device(self,
                   batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
