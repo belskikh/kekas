@@ -39,7 +39,7 @@ class Keker:
             (ex. : torch.nn.CrossEntropyLoss(),
             {"ce": torch.nn.CrossEntropyLoss(), "bce": torch.nn.BCE()})
         metrics: {"name": metric_function} dict, that contains callable metrics
-            for calculating. A metric takes target and predictions
+            for calculating. The metric takes prediction and target
             tensors as parameters, and returns float.
             For examples see kekas.metrics module.
         opt: pytorch Optimizer class (ex. torch.optim.SGD, torch.optm.Adam, etc)
