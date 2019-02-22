@@ -413,10 +413,12 @@ class PredictionsSaverCallback(Callback):
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.mode == "test":
-            out = state.out[self.preds_key].cpu().numpy()
+            out = state.out[self.preds_key]
             # DataParallelModel workaround
             if isinstance(out, list):
                 out = np.concatenate([to_numpy(o) for o in out])
+            else:
+                out = to_numpy(out)
             self.preds.append(out)
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
