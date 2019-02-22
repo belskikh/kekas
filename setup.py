@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="kekas",
-    version="0.1.9",
+    version="0.1.10",
     author="Aleksandr Belskikh",
     author_email="belskikh.aleksandr@gmail.com",
     description="Jast another DL library.",
