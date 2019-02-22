@@ -561,13 +561,13 @@ class Keker:
 
     def load(self,
              loadpath: Union[str, Path],
-             ignore_errors: bool = False) -> None:
+             skip_wrong_shape: bool = False) -> None:
         """Loads models state dict from the specified path.
 
         Args:
             loadpath: the path from which the state dict will be loaded.
-            ignore_errors: If False, will raise an exception if checkpoints
-                weigths doesn't match models weights.
+            skip_wrong_shape: If False, will raise an exception if checkpoints
+                weigths shape doesn't match models weights shape.
                 If True, will skip unmatched weights and load only matched.
         """
         loadpath = Path(loadpath)
@@ -582,7 +582,7 @@ class Keker:
 
         load_state_dict(model=self.state.model,
                         state_dict=checkpoint,
-                        ignore_errors=ignore_errors)
+                        skip_wrong_shape=skip_wrong_shape)
 
     def to_device(self,
                   batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:

@@ -151,18 +151,18 @@ class DotDict(dict):
         del self.__dict__[key]
 
 
-def load_state_dict(model, state_dict, ignore_errors=False):
+def load_state_dict(model: torch.nn.Module,
+                    state_dict: Dict,
+                    skip_wrong_shape: bool = False):
     model_state_dict = model.state_dict()
 
     for key in state_dict:
-        if key in model_state_dict and \
-                model_state_dict[key].shape == state_dict[key].shape:
-
-            if ignore_errors:
+        if key in model_state_dict:
+            if model_state_dict[key].shape == state_dict[key].shape:
                 model_state_dict[key] = state_dict[key]
-        else:
-            m = f"Shapes of the '{key}' parameters do not match: " \
-                f"{model_state_dict[key].shape} vs {state_dict[key].shape}"
-            raise Exception(m)
+            elif not skip_wrong_shape:
+                m = f"Shapes of the '{key}' parameters do not match: " \
+                    f"{model_state_dict[key].shape} vs {state_dict[key].shape}"
+                raise Exception(m)
 
     model.load_state_dict(model_state_dict)
