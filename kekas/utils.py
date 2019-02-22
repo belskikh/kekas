@@ -160,9 +160,9 @@ def load_state_dict(model, state_dict, ignore_errors=False):
 
             if ignore_errors:
                 model_state_dict[key] = state_dict[key]
-            else:
-                m = f"Shapes of the '{key}' parameters do not match: " \
-                    f"{model_state_dict[key].shape} vs {state_dict[key].shape}"
-                raise Exception(m)
+        else:
+            m = f"Shapes of the '{key}' parameters do not match: " \
+                f"{model_state_dict[key].shape} vs {state_dict[key].shape}"
+            raise Exception(m)
 
     model.load_state_dict(model_state_dict)
