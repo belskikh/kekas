@@ -183,7 +183,7 @@ class LRFinder(LRUpdater):
                  init_lr: float = 1e-6) -> None:
         super().__init__(init_lr)
         self.final_lr = final_lr
-        self.n_steps = n_steps
+        self.n_steps = n_steps - 1
         self.multiplier = 0
         self.n = 0
 
@@ -250,7 +250,7 @@ class TBLogger(Callback):
                 self.train_metrics[name].append(float(metric))
 
             lr = get_opt_lr(state.core.opt)
-            self.train_writer.add_scalar("lr",
+            self.train_writer.add_scalar("batch/lr",
                                          float(lr),
                                          global_step=self.train_iter)
 

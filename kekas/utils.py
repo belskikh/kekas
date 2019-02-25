@@ -1,16 +1,25 @@
 from pdb import set_trace as st
 
 from functools import reduce
+from pathlib import Path
+import os
 import sys
-from typing import Any, Dict, Union, Hashable, Type, List
+from typing import Any, Dict, Union, Hashable, Optional, List
 
 import numpy as np
+from plotly import tools
+from plotly.offline import init_notebook_mode, iplot
+import plotly.graph_objs as go
+from tensorboard.backend.event_processing.event_accumulator import \
+    EventAccumulator, ScalarEvent
 from tqdm import tqdm
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+import logging
+logging.getLogger('tensorflow').addFilter(lambda x: 0)
 
 BN_TYPES = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)
 
@@ -166,3 +175,56 @@ def load_state_dict(model: torch.nn.Module,
                 raise Exception(m)
 
     model.load_state_dict(model_state_dict)
+
+
+def get_tensorboard_scalars(logdir: str,
+                            metrics: Optional[List[str]],
+                            step: str) -> Dict[str, List]:
+    event_acc = EventAccumulator(str(logdir))
+    event_acc.Reload()
+
+    if metrics is not None:
+        scalar_names = [n for n in event_acc.Tags()["scalars"] if step in n
+                        and any(m in n for m in metrics)]
+    else:
+        scalar_names = [n for n in event_acc.Tags()["scalars"] if step in n]
+
+    scalars = {sn: event_acc.Scalars(sn) for sn in scalar_names}
+    return scalars
+
+
+def get_scatter(scalars: Dict[str, ScalarEvent],
+                name: str,
+                prefix: str) -> go.Scatter:
+    xs = [s.step for s in scalars[name]]
+    ys = [s.value for s in scalars[name]]
+
+    return go.Scatter(x=xs, y=ys, name=prefix+name)
+
+
+def plot_tensorboard_log(logdir: Union[str, Path],
+                         step: Optional[str] = "batch",
+                         metrics: Optional[List[str]] = None,
+                         height: Optional[int] = None,
+                         width: Optional[int] = None) -> None:
+    init_notebook_mode(connected=True)
+    logdir = Path(logdir)
+
+    train_scalars = get_tensorboard_scalars(logdir/"train", metrics, step)
+    val_scalars = get_tensorboard_scalars(logdir/"val", metrics, step)
+
+    if height is not None:
+        height = height // len(train_scalars)
+
+    for m in train_scalars:
+        tm = get_scatter(train_scalars, m, prefix="train/")
+        try:
+            vm = get_scatter(val_scalars, m, prefix="val/")
+            data = [tm, vm]
+        except:
+            data = [tm]
+        layout = go.Layout(title=m,
+                           height=height,
+                           width=width,
+                           yaxis=dict(hoverformat=".6f"))
+        iplot(go.Figure(data=data, layout=layout))

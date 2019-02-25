@@ -15,7 +15,8 @@ from .callbacks import Callback, Callbacks, ProgressBarCallback, \
     EarlyStoppingCallback, SimpleOptimizerCallback
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
-from .utils import DotDict, freeze_to, freeze, unfreeze, load_state_dict
+from .utils import DotDict, freeze_to, freeze, unfreeze, load_state_dict, \
+    plot_tensorboard_log
 
 
 class Keker:
@@ -689,6 +690,43 @@ class Keker:
     def add_callbacks(self, callbacks: List[Callback]) -> None:
         """Add callbacks to the beginning of self.callbacks"""
         self.callbacks = Callbacks(callbacks + self.callbacks.callbacks)
+
+    @staticmethod
+    def plot_kek(logdir: Union[str, Path],
+                 step: Optional[str] = "batch",
+                 metrics: Optional[List[str]] = None,
+                 height: Optional[int] = None,
+                 width: Optional[int] = None) -> None:
+        """Plots your keks results in Jupyter Notebook.
+
+        Args:
+            logdir: the logdir that was specified during kek.
+            step: 'batch' or 'epoch' - what logs to show: for batches or
+                for epochs
+            metrics: list of metrics to plot. The loss should be specified as
+                'loss', learning rate = 'lr' and other metrics should be
+                specified as names in metrics dict that was specified during kek
+            height: the height of the whole resulting plot
+            width: the width of the whole resulting plot
+
+        """
+        assert step in ["batch", "epoch"], f"Step should be either 'batch' or" \
+                                           f"'epoch', got '{step}'"
+        plot_tensorboard_log(logdir, step, metrics, height, width)
+
+    @staticmethod
+    def plot_kek_lr(logdir: Union[str, Path],
+                    height: Optional[int] = None,
+                    width: Optional[int] = None) -> None:
+        """Plots learing rate finding results in Jupyter Notebook
+        Args:
+            logdir: the logdir that was specified during kek_lr.
+            height: the height of the whole resulting plot
+            width: the width of the whole resulting plot
+        """
+        step = "batch"
+        metrics = ["loss", "lr"]
+        plot_tensorboard_log(logdir, step, metrics, height, width)
 
     @property
     def is_train(self) -> bool:
