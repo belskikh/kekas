@@ -149,6 +149,9 @@ class Keker:
         # Flag for logger callback
         self.state.core.do_log = False
 
+        # Predictions variable
+        self.state.core.preds = None
+
     def kek(self,
             lr: float,
             epochs: int,
@@ -433,14 +436,17 @@ class Keker:
 
         return {self.preds_key: preds}
 
-    def predict(self, savepath: Union[str, Path]) -> None:
+    def predict(self,
+                savepath: Optional[Union[str, Path]] = None
+                ) -> Union[None, np.ndarray]:
         """Infer the model on test dataloader and saves prediction as numpy array
 
         Args:
-            savepath: the directory to save predictions
+            savepath: the directory to save predictions. If not passed,
+                the method will return a numpy array of predictions.
         """
-        self.predict_loader(loader=self.state.core.dataowner.test_dl,
-                            savepath=savepath)
+        return self.predict_loader(loader=self.state.core.dataowner.test_dl,
+                                   savepath=savepath)
 
     def predict_loader(self,
                        loader: DataLoader,
@@ -450,7 +456,8 @@ class Keker:
 
         Args:
             loader: the dataloader for generating predictions
-            savepath: the directory to save predictions
+            savepath: the directory to save predictions. If not passed,
+                the method will return a numpy array of predictions.
         """
         callbacks = self.callbacks
 
@@ -467,12 +474,10 @@ class Keker:
             self._run_epoch(1, 1)
 
         self.callbacks = callbacks
-        if not savepath:
-            preds = self.state.core.preds
-            self.state.core.preds = None
-            return preds
-        else:
-            return
+
+        preds = self.state.core.preds
+        self.state.core.preds = None
+        return preds
 
     def predict_tensor(self,
                        tensor: Type[torch.Tensor],

@@ -414,9 +414,9 @@ class MetricsCallback(Callback):
 
 class PredictionsSaverCallback(Callback):
     def __init__(self,
-                 savepath: Union[str, Path],
+                 savepath: Optional[Union[str, Path]],
                  preds_key: str) -> None:
-        if savepath:
+        if savepath is not None:
             self.savepath = Path(savepath)
             self.savepath.parent.mkdir(exist_ok=True)
             self.return_array = False
