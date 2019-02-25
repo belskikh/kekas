@@ -146,6 +146,9 @@ class Keker:
         # The scheduler attribute. Scheduler is determined in self.kek* methods.
         self.state.core.sched = None
 
+        # Flag for logger callback
+        self.state.core.do_log = False
+
     def kek(self,
             lr: float,
             epochs: int,
@@ -242,6 +245,7 @@ class Keker:
             self.callbacks.on_train_end(self.state)
         finally:
             self.state.core.pbar.close()
+            self.state.core.do_log = False
             self.callbacks = callbacks
 
     def kek_one_cycle(self,
@@ -435,22 +439,13 @@ class Keker:
         Args:
             savepath: the directory to save predictions
         """
-        callbacks = self.callbacks
-
-        tmp_callbacks = Callbacks([ProgressBarCallback(),
-                                   PredictionsSaverCallback(savepath,
-                                                            self.preds_key)])
-
-        self.callbacks = tmp_callbacks
-        self.set_mode("test")
-        with torch.set_grad_enabled(False):
-            self._run_epoch(1, 1)
-
-        self.callbacks = callbacks
+        self.predict_loader(loader=self.state.core.dataowner.test_dl,
+                            savepath=savepath)
 
     def predict_loader(self,
                        loader: DataLoader,
-                       savepath: Union[str, Path]) -> None:
+                       savepath: Optional[Union[str, Path]] = None
+                       ) -> Union[None, np.ndarray]:
         """Infer the model on dataloader and saves prediction as numpy array
 
         Args:
@@ -472,6 +467,12 @@ class Keker:
             self._run_epoch(1, 1)
 
         self.callbacks = callbacks
+        if not savepath:
+            preds = self.state.core.preds
+            self.state.core.preds = None
+            return preds
+        else:
+            return
 
     def predict_tensor(self,
                        tensor: Type[torch.Tensor],

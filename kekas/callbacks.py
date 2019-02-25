@@ -416,8 +416,13 @@ class PredictionsSaverCallback(Callback):
     def __init__(self,
                  savepath: Union[str, Path],
                  preds_key: str) -> None:
-        self.savepath = Path(savepath)
-        self.savepath.parent.mkdir(exist_ok=True)
+        if savepath:
+            self.savepath = Path(savepath)
+            self.savepath.parent.mkdir(exist_ok=True)
+            self.return_array = False
+        else:
+            self.savepath = None
+            self.return_array = True
         self.preds_key = preds_key
         self.preds = []
 
@@ -433,7 +438,11 @@ class PredictionsSaverCallback(Callback):
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         if state.core.mode == "test":
-            np.save(self.savepath, np.concatenate(self.preds))
+            preds = np.concatenate(self.preds)
+            if self.return_array:
+                state.core.preds = preds
+            else:
+                np.save(self.savepath, preds)
             self.preds = []
 
 
