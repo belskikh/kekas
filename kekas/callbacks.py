@@ -371,11 +371,21 @@ class MetricsCallback(Callback):
         self.target_key = target_key
         self.preds_key = preds_key
 
+    def get_metric(self,
+                   metric: Callable,
+                   target: torch.Tensor,
+                   preds: Union[List, torch.Tensor]) -> float:
+        # dataparallel workaround
+        if isinstance(preds, list):
+            preds = torch.cat(preds)
+        return metric(target, preds)
+
     def update_epoch_metrics(self,
-                             target: Type[torch.Tensor],
-                             preds: Type[torch.Tensor]) -> None:
+                             target: torch.Tensor,
+                             preds: Union[List, torch.Tensor]) -> None:
+
         for name, m in self.metrics.items():
-            value = m(preds, target)
+            value = self.get_metric(m, target, preds)
             self.pbar_metrics[name] += value
 
     def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
@@ -392,7 +402,7 @@ class MetricsCallback(Callback):
             for name, m in self.metrics.items():
                 preds = state.out[self.preds_key]
                 target = state.batch[self.target_key]
-                value = m(preds, target)
+                value = self.get_metric(m, target, preds)
                 state.metrics[state.mode][name] = value
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
