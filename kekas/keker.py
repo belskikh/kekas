@@ -497,6 +497,10 @@ class Keker:
         with torch.set_grad_enabled(False):
             self.set_mode("test")
             preds = self.state.core.model(tensor)
+
+            # dataparallel workaround
+            if isinstance(preds, list):
+                preds = torch.cat(preds)
         if to_numpy:
             preds = preds.cpu().numpy()
         return preds
