@@ -1,12 +1,14 @@
 import setuptools
 
+import kekas
+
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="kekas",
-    version="0.1.10",
+    version=kekas.__version__,
     author="Aleksandr Belskikh",
     author_email="belskikh.aleksandr@gmail.com",
     description="Jast another DL library.",
