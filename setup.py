@@ -27,6 +27,7 @@ setuptools.setup(
         "pandas>=0.22",
         "numpy>=1.14.6",
         "plotly>=3.6.1",
+        "tensorboard==1.12.2"
         "tensorboardX>=1.6",
         "torch>=0.4.1",
         "torchvision>=0.2.1",
