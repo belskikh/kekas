@@ -104,9 +104,9 @@ class LRUpdater(Callback):
         return new_momentum
 
     def on_batch_begin(self, i: int, state: DotDict) -> None:
-        if state.mode == "train":
-            self.update_lr(state.opt)
-            self.update_momentum(state.opt)
+        if state.core.mode == "train":
+            self.update_lr(state.core.opt)
+            self.update_momentum(state.core.opt)
 
 
 class OneCycleLR(LRUpdater):
@@ -164,7 +164,7 @@ class OneCycleLR(LRUpdater):
 
     def on_batch_begin(self, i: int, state: DotDict) -> None:
         super().on_batch_begin(i, state)
-        if state.mode == "train":
+        if state.core.mode == "train":
             self.cycle_iter += 1
 
 
@@ -207,7 +207,7 @@ class LRFinder(LRUpdater):
         super().on_batch_end(i, state)
         if self.n > self.n_steps:
             print("End of LRFinder")
-            state.stop_epoch = True
+            state.core.stop_epoch = True
 
 
 class TBLogger(Callback):
@@ -242,37 +242,37 @@ class TBLogger(Callback):
         self.val_batch_iter = 0
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
-        if state.mode == "train":
-            for name, metric in state.metrics["train"].items():
+        if state.core.mode == "train":
+            for name, metric in state.core.metrics["train"].items():
                 self.train_writer.add_scalar(f"batch/{name}",
                                              float(metric),
                                              global_step=self.total_iter)
                 self.train_metrics[name].append(float(metric))
 
-            lr = get_opt_lr(state.opt)
+            lr = get_opt_lr(state.core.opt)
             self.train_writer.add_scalar("lr",
                                          float(lr),
                                          global_step=self.train_iter)
 
-            self.update_total_iter(state.mode)
+            self.update_total_iter(state.core.mode)
 
-        elif state.mode == "val":
-            for name, metric in state.metrics["val"].items():
+        elif state.core.mode == "val":
+            for name, metric in state.core.metrics["val"].items():
                 self.val_writer.add_scalar(f"batch/{name}",
                                            float(metric),
                                            global_step=self.total_iter)
                 self.val_metrics[name].append(float(metric))
 
-            self.update_total_iter(state.mode)
+            self.update_total_iter(state.core.mode)
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if state.mode == "train":
+        if state.core.mode == "train":
             for name, metric in self.train_metrics.items():
                 mean = np.mean(metric[-10:])  # get last 10 values as approximation
                 self.train_writer.add_scalar(f"epoch/{name}",
                                              float(mean),
                                              global_step=epoch)
-        if state.mode == "val":
+        if state.core.mode == "val":
             for name, metric in self.val_metrics.items():
                 mean = np.mean(metric[-self.val_batch_iter:])  # last epochs vals
                 self.val_writer.add_scalar(f"epoch/{name}",
@@ -290,18 +290,18 @@ class SimpleLossCallback(Callback):
         self.preds_key = preds_key
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
-        target = state.batch[self.target_key]
-        preds = state.out[self.preds_key]
+        target = state.core.batch[self.target_key]
+        preds = state.core.out[self.preds_key]
 
-        state.loss = state.criterion(preds, target)
+        state.core.loss = state.core.criterion(preds, target)
 
 
 class SimpleOptimizerCallback(Callback):
     def on_batch_end(self, i: int, state: DotDict) -> None:
-        if state.mode == "train":
-            state.opt.zero_grad()
-            state.loss.backward()
-            state.opt.step()
+        if state.core.mode == "train":
+            state.core.opt.zero_grad()
+            state.core.loss.backward()
+            state.core.opt.step()
 
 
 class SimpleSchedulerCallback(Callback):
@@ -314,12 +314,12 @@ class SimpleSchedulerCallback(Callback):
             self.when = "on_epoch_begin"
 
     def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
-        if self.when == "on_epoch_begin" and state.mode == "train":
-            state.sched.step()
+        if self.when == "on_epoch_begin" and state.core.mode == "train":
+            state.core.sched.step()
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if self.when == "on_epoch_end" and state.mode == "train":
-            state.sched.step(state.epoch_metrics[self.metric])
+        if self.when == "on_epoch_end" and state.core.mode == "train":
+            state.core.sched.step(state.core.epoch_metrics[self.metric])
 
 
 class ProgressBarCallback(Callback):
@@ -329,36 +329,36 @@ class ProgressBarCallback(Callback):
     def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
         self.running_loss = None
 
-        loader = state.loader
-        if state.mode == "train":
+        loader = state.core.loader
+        if state.core.mode == "train":
             description = f"Epoch {epoch+1}/{epochs}"
-            state.pbar = get_pbar(loader, description)
-        elif state.mode == "test":
+            state.core.pbar = get_pbar(loader, description)
+        elif state.core.mode == "test":
             description = "Predict"
-            state.pbar = get_pbar(loader, description)
+            state.core.pbar = get_pbar(loader, description)
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
 
-        if state.mode == "train":
+        if state.core.mode == "train":
             if not self.running_loss:
-                self.running_loss = to_numpy(state.loss)
+                self.running_loss = to_numpy(state.core.loss)
 
-            self.running_loss = exp_weight_average(state.loss,
+            self.running_loss = exp_weight_average(state.core.loss,
                                                    self.running_loss)
             postfix = {"loss": f"{self.running_loss:.4f}"}
-            state.pbar.set_postfix(postfix)
-            state.pbar.update()
-        elif state.mode == "test":
-            state.pbar.update()
+            state.core.pbar.set_postfix(postfix)
+            state.core.pbar.update()
+        elif state.core.mode == "test":
+            state.core.pbar.update()
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if state.mode == "val":
-            metrics = state.get("epoch_metrics", {})
-            state.pbar.set_postfix_str(extend_postfix(state.pbar.postfix,
+        if state.core.mode == "val":
+            metrics = state.core.get("epoch_metrics", {})
+            state.core.pbar.set_postfix_str(extend_postfix(state.core.pbar.postfix,
                                                       metrics))
-            state.pbar.close()
-        elif state.mode == "test":
-            state.pbar.close()
+            state.core.pbar.close()
+        elif state.core.mode == "test":
+            state.core.pbar.close()
 
 
 class MetricsCallback(Callback):
@@ -392,24 +392,24 @@ class MetricsCallback(Callback):
         self.pbar_metrics = defaultdict(float)
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
-        if state.mode == "val":
-            self.pbar_metrics["val_loss"] += float(to_numpy(state.loss))
-            self.update_epoch_metrics(target=state.batch[self.target_key],
-                                      preds=state.out[self.preds_key])
+        if state.core.mode == "val":
+            self.pbar_metrics["val_loss"] += float(to_numpy(state.core.loss))
+            self.update_epoch_metrics(target=state.core.batch[self.target_key],
+                                      preds=state.core.out[self.preds_key])
         # tb logs
-        if state.mode != "test" and state.do_log:
-            state.metrics[state.mode]["loss"] = float(to_numpy(state.loss))
+        if state.core.mode != "test" and state.core.do_log:
+            state.core.metrics[state.core.mode]["loss"] = float(to_numpy(state.core.loss))
             for name, m in self.metrics.items():
-                preds = state.out[self.preds_key]
-                target = state.batch[self.target_key]
+                preds = state.core.out[self.preds_key]
+                target = state.core.batch[self.target_key]
                 value = self.get_metric(m, target, preds)
-                state.metrics[state.mode][name] = value
+                state.core.metrics[state.core.mode][name] = value
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        divider = len(state.loader)
+        divider = len(state.core.loader)
         for k in self.pbar_metrics.keys():
             self.pbar_metrics[k] /= divider
-        state.epoch_metrics = self.pbar_metrics
+        state.core.epoch_metrics = self.pbar_metrics
 
 
 class PredictionsSaverCallback(Callback):
@@ -422,8 +422,8 @@ class PredictionsSaverCallback(Callback):
         self.preds = []
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
-        if state.mode == "test":
-            out = state.out[self.preds_key]
+        if state.core.mode == "test":
+            out = state.core.out[self.preds_key]
             # DataParallelModel workaround
             if isinstance(out, list):
                 out = np.concatenate([to_numpy(o) for o in out])
@@ -432,7 +432,7 @@ class PredictionsSaverCallback(Callback):
             self.preds.append(out)
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if state.mode == "test":
+        if state.core.mode == "test":
             np.save(self.savepath, np.concatenate(self.preds))
             self.preds = []
 
@@ -463,8 +463,8 @@ class CheckpointSaverCallback(Callback):
         self.best_scores = self.best_scores[:epochs]
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if state.mode == "val":
-            score_val = state.epoch_metrics[self.metric]
+        if state.core.mode == "val":
+            score_val = state.core.epoch_metrics[self.metric]
             score_name = f"{self.prefix}{epoch + 1}.h5"
             score = (score_val, score_name)
             sorted_scores = sorted(self.best_scores + [score],
@@ -472,7 +472,7 @@ class CheckpointSaverCallback(Callback):
             self.best_scores = sorted_scores[:self.n_best]
             # set_trace()
             if score_name in (s[1] for s in self.best_scores):
-                state.checkpoint = f"{self.savedir / score_name}"
+                state.core.checkpoint = f"{self.savedir / score_name}"
                 # remove worst checkpoint
                 if len(sorted_scores) > self.n_best:
                     # set_trace()
@@ -506,8 +506,8 @@ class EarlyStoppingCallback(Callback):
             self.is_better = lambda score, best: score >= (best - min_delta)
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if state.mode == "val":
-            score = state.epoch_metrics[self.metric]
+        if state.core.mode == "val":
+            score = state.core.epoch_metrics[self.metric]
             if self.best_score is None:
                 self.best_score = score
             if self.is_better(score, self.best_score):
@@ -517,7 +517,7 @@ class EarlyStoppingCallback(Callback):
                 self.num_bad_epochs += 1
 
             if self.num_bad_epochs >= self.patience:
-                state.stop_train = True
+                state.core.stop_train = True
 
 
 class DebuggerCallback(Callback):
@@ -527,38 +527,38 @@ class DebuggerCallback(Callback):
 
     def on_batch_begin(self, i: int, state: DotDict) -> None:
         if "on_batch_begin" in self.when:
-            if state.mode == "train" and "train" in self.modes:
+            if state.core.mode == "train" and "train" in self.modes:
                 set_trace()
-            if state.mode == "val" and "val" in self.modes:
+            if state.core.mode == "val" and "val" in self.modes:
                 set_trace()
-            if state.mode == "test" and "test" in self.modes:
+            if state.core.mode == "test" and "test" in self.modes:
                 set_trace()
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if "on_batch_end" in self.when:
-            if state.mode == "train" and "train" in self.modes:
+            if state.core.mode == "train" and "train" in self.modes:
                 set_trace()
-            if state.mode == "val" and "val" in self.modes:
+            if state.core.mode == "val" and "val" in self.modes:
                 set_trace()
-            if state.mode == "test" and "test" in self.modes:
+            if state.core.mode == "test" and "test" in self.modes:
                 set_trace()
 
     def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
         if "on_epoch_begin" in self.when:
-            if state.mode == "train" and "train" in self.modes:
+            if state.core.mode == "train" and "train" in self.modes:
                 set_trace()
-            if state.mode == "val" and "val" in self.modes:
+            if state.core.mode == "val" and "val" in self.modes:
                 set_trace()
-            if state.mode == "test" and "test" in self.modes:
+            if state.core.mode == "test" and "test" in self.modes:
                 set_trace()
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         if "on_epoch_end" in self.when:
-            if state.mode == "train" and "train" in self.modes:
+            if state.core.mode == "train" and "train" in self.modes:
                 set_trace()
-            if state.mode == "val" and "val" in self.modes:
+            if state.core.mode == "val" and "val" in self.modes:
                 set_trace()
-            if state.mode == "test" and "test" in self.modes:
+            if state.core.mode == "test" and "test" in self.modes:
                 set_trace()
 
     def on_train_begin(self, state: DotDict) -> None:

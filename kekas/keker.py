@@ -52,14 +52,14 @@ class Keker:
         step_fn: The function that will be called at every batch of your data.
             Take a `self` as a parameter. In this function you define
             what you do with your batch. You get access to batch through
-            self._state.batch object. Batch is a dict returned from your
+            self._state.core.batch object. Batch is a dict returned from your
             dataloader, and its key and values are specified in reader_function
             for DataKek.
             Return a dict that should contain batch predictions with access
             by `preds_key`.
             For example see self.default_step method and example ipynbs.
         loss_cb: The Callback for loss calculation. Define how to calculate loss
-            and store loss value in self._state.loss attr.
+            and store loss value in self._state.core.loss attr.
             Default loss callback is SimpleLossCallback.
             For examples see kekas.callbacks.
         opt_cb: The Callback for optimizer applying.
@@ -83,38 +83,36 @@ class Keker:
                  opt_cb: Optional[Callback] = None,
                  callbacks: Optional[Union[List, Callbacks]] = None) -> None:
 
-        # The _state is an object that stores many variables and represents
-        # the state of your train-val-repdict pipeline. _state passed to every
+        # The state is an object that stores many variables and represents
+        # the state of your train-val-predict pipeline. state passed to every
         # callback call.
         # You can use it as a container for your custom variables, but
-        # DO NOT USE the following ones:
-        #
-        # loss, batch, model, dataowner, criterion, opt, parallel, checkpoint,
-        # stop_iter, stop_epoch, stop_train, out, sched, mode, loader, pbar,
-        # metrics, epoch_metrics
+        # DO NOT USE the 'core' attrubute, because all kekers variables are
+        # there
         #
         self.state = DotDict()
+        self.state.core = DotDict()
 
-        self.state.model = model
-        self.state.dataowner = dataowner
+        self.state.core.model = model
+        self.state.core.dataowner = dataowner
 
         self.target_key = target_key
         self.preds_key = preds_key
 
-        self.state.criterion = criterion
+        self.state.core.criterion = criterion
 
-        self.state.parallel = False
+        self.state.core.parallel = False
         if torch.cuda.device_count() > 1:
-            self.state.model = DataParallelModel(self.state.model)
-            self.state.criterion = DataParallelCriterion(self.state.criterion)
-            self.state.parallel = True
+            self.state.core.model = DataParallelModel(self.state.core.model)
+            self.state.core.criterion = DataParallelCriterion(self.state.core.criterion)
+            self.state.core.parallel = True
 
         self.opt = opt or SGD
         self.opt_params = opt_params or {}
         self.device = device or torch.device("cuda" if
                                              torch.cuda.is_available()
                                              else "cpu")
-        self.state.model.to(self.device)
+        self.state.core.model.to(self.device)
 
         self.step_fn = step_fn or self.default_step_fn
 
@@ -133,20 +131,20 @@ class Keker:
 
         self.callbacks = Callbacks(callbacks)
 
-        self.state.checkpoint = ""
+        self.state.core.checkpoint = ""
 
         # The number of batch in dataloader for iteration stop,
         # determined in self.kek* methods.
-        self.state.stop_iter = None
+        self.state.core.stop_iter = None
 
         # flag for train stop after batch.
-        self.state.stop_epoch = False
+        self.state.core.stop_epoch = False
 
         # flag for stop the whole train, used for early stopping.
-        self.state.stop_train = False
+        self.state.core.stop_train = False
 
         # The scheduler attribute. Scheduler is determined in self.kek* methods.
-        self.state.sched = None
+        self.state.core.sched = None
 
     def kek(self,
             lr: float,
@@ -199,18 +197,18 @@ class Keker:
 
         opt = opt or self.opt
         opt_params = opt_params or self.opt_params
-        params = (p for p in self.state.model.parameters() if p.requires_grad)
-        self.state.opt = opt(params=params, lr=lr, **opt_params)
+        params = (p for p in self.state.core.model.parameters() if p.requires_grad)
+        self.state.core.opt = opt(params=params, lr=lr, **opt_params)
 
         if sched:
             sched_params = sched_params or {}
-            self.state.sched = sched(optimizer=self.state.opt, **sched_params)
-            sched_cb = SimpleSchedulerCallback(sched=self.state.sched)
+            self.state.core.sched = sched(optimizer=self.state.core.opt, **sched_params)
+            sched_cb = SimpleSchedulerCallback(sched=self.state.core.sched)
             self.callbacks = Callbacks(self.callbacks.callbacks + [sched_cb])
 
         if logdir:
-            self.state.do_log = True
-            self.state.metrics = defaultdict(dict)
+            self.state.core.do_log = True
+            self.state.core.metrics = defaultdict(dict)
             tboard_cb = TBLogger(logdir)
             self.callbacks = Callbacks(self.callbacks.callbacks + [tboard_cb])
 
@@ -236,14 +234,14 @@ class Keker:
                     self.set_mode("val")
                     self._run_epoch(epoch, epochs)
 
-                if self.state.stop_train:
-                    self.state.stop_train = False
+                if self.state.core.stop_train:
+                    self.state.core.stop_train = False
                     print(f"Early stopped on {epoch + 1} epoch")
                     break
 
             self.callbacks.on_train_end(self.state)
         finally:
-            self.state.pbar.close()
+            self.state.core.pbar.close()
             self.callbacks = callbacks
 
     def kek_one_cycle(self,
@@ -295,7 +293,7 @@ class Keker:
         callbacks = self.callbacks
 
         # temporarily add OneCycle callback
-        len_loader = len(self.state.dataowner.train_dl)
+        len_loader = len(self.state.core.dataowner.train_dl)
         one_cycle_cb = OneCycleLR(max_lr, cycle_len, len_loader,
                                   momentum_range, div_factor, increase_fraction)
 
@@ -348,7 +346,7 @@ class Keker:
         self.save(tmp_cp)
 
 
-        len_loader = len(self.state.dataowner.train_dl)
+        len_loader = len(self.state.core.dataowner.train_dl)
         n_steps = max(n_steps if n_steps is not None else 0, len_loader)
         n_epochs = max(1, int(np.ceil(n_steps / len_loader)))
 
@@ -379,30 +377,30 @@ class Keker:
         self.callbacks.on_epoch_begin(epoch, epochs, self.state)
 
         with torch.set_grad_enabled(self.is_train):
-            for i, batch in enumerate(self.state.loader):
+            for i, batch in enumerate(self.state.core.loader):
                 self.callbacks.on_batch_begin(i, self.state)
 
-                self.state.batch = self.to_device(batch)
+                self.state.core.batch = self.to_device(batch)
 
-                self.state.out = self.step()
+                self.state.core.out = self.step()
 
                 self.callbacks.on_batch_end(i, self.state)
 
-                if (self.state.stop_iter and self.state.mode == "train"
-                        and i == self.state.stop_iter - 1):
+                if (self.state.core.stop_iter and self.state.core.mode == "train"
+                        and i == self.state.core.stop_iter - 1):
                     # break only in train mode and if early stop is set
-                    self.state.stop_epoch = True
+                    self.state.core.stop_epoch = True
 
-                if self.state.stop_epoch:
-                    self.state.stop_epoch = False
+                if self.state.core.stop_epoch:
+                    self.state.core.stop_epoch = False
                     # st()
                     break
 
         self.callbacks.on_epoch_end(epoch, self.state)
 
-        if self.state.checkpoint:
-            self.save(self.state.checkpoint)
-            self.state.checkpoint = ""
+        if self.state.core.checkpoint:
+            self.save(self.state.core.checkpoint)
+            self.state.core.checkpoint = ""
 
     @staticmethod
     def default_step_fn(model: torch.nn.Module,
@@ -426,8 +424,8 @@ class Keker:
         Returns:
             the dict that contains prediction tensor for the batch.
         """
-        preds = self.step_fn(model=self.state.model,
-                             batch=self.state.batch)
+        preds = self.step_fn(model=self.state.core.model,
+                             batch=self.state.core.batch)
 
         return {self.preds_key: preds}
 
@@ -467,9 +465,9 @@ class Keker:
 
         self.callbacks = tmp_callbacks
 
-        self.state.mode = "test"
-        self.state.loader = loader
-        self.state.model.eval()
+        self.state.core.mode = "test"
+        self.state.core.loader = loader
+        self.state.core.model.eval()
         with torch.set_grad_enabled(False):
             self._run_epoch(1, 1)
 
@@ -492,7 +490,7 @@ class Keker:
         tensor = tensor.to(self.device)
         with torch.set_grad_enabled(False):
             self.set_mode("test")
-            preds = self.state.model(tensor)
+            preds = self.state.core.model(tensor)
         if to_numpy:
             preds = preds.cpu().numpy()
         return preds
@@ -557,7 +555,7 @@ class Keker:
         """
         savepath = Path(savepath)
         savepath.parent.mkdir(exist_ok=True)
-        torch.save(self.state.model.state_dict(), savepath)
+        torch.save(self.state.core.model.state_dict(), savepath)
 
     def load(self,
              loadpath: Union[str, Path],
@@ -575,12 +573,12 @@ class Keker:
                                 map_location=lambda storage, loc: storage)
 
         # workaround DataParallelModel
-        if not isinstance(self.state.model, DataParallelModel) \
+        if not isinstance(self.state.core.model, DataParallelModel) \
                 and "module." in list(checkpoint.keys())[0]:
             # [7:] is to skip 'module.' in group name
             checkpoint = {k[7:]: v for k, v in checkpoint.items()}
 
-        load_state_dict(model=self.state.model,
+        load_state_dict(model=self.state.core.model,
                         state_dict=checkpoint,
                         skip_wrong_shape=skip_wrong_shape)
 
@@ -604,15 +602,15 @@ class Keker:
             mode: 'train', 'val' or 'test', the mode of training procedure.
         """
         if mode == "train":
-            self.state.model.train()
-            self.state.loader = self.state.dataowner.train_dl
+            self.state.core.model.train()
+            self.state.core.loader = self.state.core.dataowner.train_dl
         elif mode == "val":
-            self.state.model.eval()
-            self.state.loader = self.state.dataowner.val_dl
+            self.state.core.model.eval()
+            self.state.core.loader = self.state.core.dataowner.val_dl
         elif mode == "test":
-            self.state.model.eval()
-            self.state.loader = self.state.dataowner.test_dl
-        self.state.mode = mode
+            self.state.core.model.eval()
+            self.state.core.loader = self.state.core.dataowner.test_dl
+        self.state.core.mode = mode
 
     def freeze_to(self,
                   n: int,
@@ -667,10 +665,10 @@ class Keker:
         Returns:
             The models attribute or the model itself.
         """
-        if self.state.parallel:
-            model = self.state.model.module
+        if self.state.core.parallel:
+            model = self.state.core.model.module
         else:
-            model = self.state.model
+            model = self.state.core.model
 
         if model_attr is not None:
             module = getattr(model, model_attr)
@@ -684,4 +682,4 @@ class Keker:
 
     @property
     def is_train(self) -> bool:
-        return self.state.mode == "train"
+        return self.state.core.mode == "train"
