@@ -43,5 +43,18 @@ Just contribute something good, and don't contribute anything bad.
 
 # Citing
 If you find this library useful for your research, please consider citing:
+```
+@misc{aleksandr belskikh_2019,
+    author      = {Aleksandr Belskikh},
+    title       = {{kekas: Just another DL library}},
+    month       = feb,
+    year        = 2019,
+    doi         = {10.5281/zenodo.2577861},
+    version     = {0.1.12},
+    publisher   = {Zenodo}, 
+    url         = {https://doi.org/10.5281/zenodo.2577861},
+    }
+
+```
 
 [![DOI](https://zenodo.org/badge/144457787.svg)](https://zenodo.org/badge/latestdoi/144457787)
