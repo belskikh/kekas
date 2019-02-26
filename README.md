@@ -40,3 +40,8 @@ Just contribute something good, and don't contribute anything bad.
 - [ ] FP16 support 
 - [ ] Discriminative learning rates
 - [ ] Docs :kekeke:
+
+# Citing
+If you find this library useful for your research, please consider citing:
+
+[![DOI](https://zenodo.org/badge/144457787.svg)](https://zenodo.org/badge/latestdoi/144457787)
