@@ -355,7 +355,7 @@ class Keker:
 
 
         len_loader = len(self.state.core.dataowner.train_dl)
-        n_steps = max(n_steps if n_steps is not None else 0, len_loader)
+        n_steps = n_steps if n_steps is not None else len_loader
         n_epochs = max(1, int(np.ceil(n_steps / len_loader)))
 
         callbacks = self.callbacks
