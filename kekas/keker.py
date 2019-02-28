@@ -355,8 +355,7 @@ class Keker:
 
 
         len_loader = len(self.state.core.dataowner.train_dl)
-        n_steps = n_steps if n_steps is not None else len_loader
-        n_epochs = max(1, int(np.ceil(n_steps / len_loader)))
+        n_steps = min(n_steps if n_steps is not None else len_loader, len_loader)
 
         callbacks = self.callbacks
 
@@ -366,7 +365,7 @@ class Keker:
                                    n_steps=n_steps)
 
             self.callbacks = Callbacks(self.core_callbacks + [lrfinder_cb])
-            self.kek(lr=init_lr, epochs=n_epochs, skip_val=True, logdir=logdir,
+            self.kek(lr=init_lr, epochs= 1, skip_val=True, logdir=logdir,
                      opt=opt, opt_params=opt_params)
         finally:
             self.callbacks = callbacks
