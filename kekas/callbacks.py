@@ -183,8 +183,7 @@ class LRFinder(LRUpdater):
                  init_lr: float = 1e-6) -> None:
         super().__init__(init_lr)
         self.final_lr = final_lr
-        self.n_steps = n_steps - 1
-        self.multiplier = 0
+        self.n_steps = max(1, n_steps - 1)
         self.n = 0
 
     def calc_lr(self) -> float:
@@ -196,17 +195,13 @@ class LRFinder(LRUpdater):
     def calc_momentum(self) -> None:
         pass
 
-    def update_momentum(self,
-                        optimizer: torch.optim.Optimizer) -> float:
+    def update_momentum(self, optimizer: torch.optim.Optimizer) -> float:
         pass
-
-    def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
-        self.multiplier = self.init_lr ** (1 / self.n_steps)
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
         super().on_batch_end(i, state)
-        if self.n > self.n_steps:
-            print("End of LRFinder")
+        if self.n == (self.n_steps + 1):
+            print("\nEnd of LRFinder")
             state.core.stop_epoch = True
 
 
@@ -217,6 +212,7 @@ class TBLogger(Callback):
         self.total_iter = 0
         self.train_iter = 0
         self.val_iter = 0
+        self.train_batch_iter = 0
         self.val_batch_iter = 0
         self.train_metrics = defaultdict(list)
         self.val_metrics = defaultdict(list)
@@ -224,6 +220,7 @@ class TBLogger(Callback):
     def update_total_iter(self, mode: str) -> None:
         if mode == "train":
             self.train_iter += 1
+            self.train_batch_iter += 1
         if mode == "val":
             self.val_iter += 1
             self.val_batch_iter +=1
@@ -239,6 +236,7 @@ class TBLogger(Callback):
         self.val_metrics = defaultdict(list)
 
     def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict):
+        self.train_batch_iter = 0
         self.val_batch_iter = 0
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
@@ -268,7 +266,7 @@ class TBLogger(Callback):
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         if state.core.mode == "train":
             for name, metric in self.train_metrics.items():
-                mean = np.mean(metric[-10:])  # get last 10 values as approximation
+                mean = np.mean(metric[-self.train_batch_iter:])
                 self.train_writer.add_scalar(f"epoch/{name}",
                                              float(mean),
                                              global_step=epoch)
@@ -356,9 +354,7 @@ class ProgressBarCallback(Callback):
             metrics = state.core.get("epoch_metrics", {})
             state.core.pbar.set_postfix_str(extend_postfix(state.core.pbar.postfix,
                                                       metrics))
-            state.core.pbar.close()
-        elif state.core.mode == "test":
-            state.core.pbar.close()
+        state.core.pbar.close()
 
 
 class MetricsCallback(Callback):

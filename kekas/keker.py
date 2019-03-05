@@ -79,9 +79,9 @@ class Keker:
                  opt: Optional[Type[torch.optim.Optimizer]] = None,
                  opt_params: Optional[Dict] = None,
                  device: Optional[torch.device] = None,
-                 step_fn: Optional[Callable] = None,
-                 loss_cb: Optional[Callback] = None,
-                 opt_cb: Optional[Callback] = None,
+                 step_fn: Optional[Type[Callback]] = None,
+                 loss_cb: Optional[Type[Callback]] = None,
+                 opt_cb: Optional[Type[Callback]] = None,
                  callbacks: Optional[Union[List, Callbacks]] = None) -> None:
 
         # The state is an object that stores many variables and represents
@@ -105,7 +105,15 @@ class Keker:
         self.state.core.parallel = False
         if torch.cuda.device_count() > 1:
             self.state.core.model = DataParallelModel(self.state.core.model)
-            self.state.core.criterion = DataParallelCriterion(self.state.core.criterion)
+            if isinstance(self.state.core.criterion, dict):
+                self.state.core.criterion = {
+                    k: DataParallelCriterion(v) for k, v
+                    in self.state.core.criterion.items()
+                }
+            else:
+                self.state.core.criterion = DataParallelCriterion(
+                    self.state.core.criterion
+                )
             self.state.core.parallel = True
 
         self.opt = opt or SGD
@@ -119,7 +127,11 @@ class Keker:
 
         # the core callbacks for train-val-predict are determined here.
         # the order of callbacks is matters!
-        loss_cb = loss_cb or SimpleLossCallback(target_key, self.preds_key)
+        if loss_cb is not None:
+            loss_cb = loss_cb(target_key, self.preds_key)
+        else:
+            loss_cb = SimpleLossCallback(target_key, self.preds_key)
+
         opt_cb = opt_cb or SimpleOptimizerCallback()
         metrics_cb = MetricsCallback(target_key, self.preds_key, metrics)
 
@@ -353,9 +365,8 @@ class Keker:
         tmp_cp = logdir / "tmp.h5"
         self.save(tmp_cp)
 
-
         len_loader = len(self.state.core.dataowner.train_dl)
-        n_steps = max(n_steps if n_steps is not None else 0, len_loader)
+        n_steps = n_steps if n_steps is not None else len_loader
         n_epochs = max(1, int(np.ceil(n_steps / len_loader)))
 
         callbacks = self.callbacks
@@ -603,8 +614,16 @@ class Keker:
         Returns:
             The batch dict with tensors on self.device.
         """
-        return {k: v.to(self.device) for k, v in batch.items()
-                if hasattr(v, "to")}
+        res = {}
+        for k, v in batch.items():
+            if isinstance(v, dict):
+                v = self.to_device(v)
+            else:
+                if hasattr(v, "to"):
+                    v = v.to(self.device)
+            res[k] = v
+
+        return res
 
     def set_mode(self, mode: str) -> None:
         """Set the model to train or val and switch dataloaders
