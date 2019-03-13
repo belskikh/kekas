@@ -11,7 +11,7 @@ setuptools.setup(
     version=kekas.__version__,
     author="Aleksandr Belskikh",
     author_email="belskikh.aleksandr@gmail.com",
-    description="Jast another DL library.",
+    description="Just another DL library.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/belskikh/kekas",
