@@ -354,8 +354,9 @@ class ProgressBarCallback(Callback):
             metrics = state.core.get("epoch_metrics", {})
             state.core.pbar.set_postfix_str(extend_postfix(state.core.pbar.postfix,
                                                       metrics))
-        state.core.pbar.close()
-
+            state.core.pbar.close()
+        elif state.core.mode == "test":
+            state.core.pbar.close()
 
 class MetricsCallback(Callback):
     def __init__(self,
