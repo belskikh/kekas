@@ -50,7 +50,7 @@ If you find this library useful for your research, please consider citing:
     month       = feb,
     year        = 2019,
     doi         = {10.5281/zenodo.2577861},
-    version     = {0.1.12},
+    version     = {0.1.13},
     publisher   = {Zenodo}, 
     url         = {https://doi.org/10.5281/zenodo.2577861},
     }
