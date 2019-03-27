@@ -96,7 +96,7 @@ class Keker:
         self.state.core = DotDict()
 
         self.state.core.model = model
-        self.state.core.dataowner = dataowner
+        self.state.core.dataowner = dataowner or DataOwner(None, None, None)
 
         self.target_key = target_key
         self.preds_key = preds_key
@@ -216,7 +216,7 @@ class Keker:
                             "Reinitialize Keker with one.")
 
         # check if dataowner exists
-        if self.state.core.dataowner is None:
+        if self.state.core.dataowner.train_dl is None:
             raise Exception("Keker needs Dataowner. "
                             "Reinitialize Keker with one.")
 
