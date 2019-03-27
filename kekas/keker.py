@@ -25,6 +25,11 @@ class Keker:
     Args:
         model: The neural network for train/val/predict.
         dataowner: The namedtuple container of train/val/test dataloaders.
+        criterion: The loss function or the dict {'name': loss function}
+            in case of multiple loss setup. If multiple loss is using,
+            loss_cb should be provided.
+            (ex. : torch.nn.CrossEntropyLoss(),
+            {"ce": torch.nn.CrossEntropyLoss(), "bce": torch.nn.BCE()})
         tarket_key: The target/label key for batch-dict from dataloader.
             The dataloader returns batch as a dict on each iteration,
             that contains input data and target labels. This is key is for
@@ -34,11 +39,6 @@ class Keker:
             This key is for access to predictions in this dict.
             This attribute is optional in default behavior but coulb be used
             in case of using custom callbacks.
-        criterion: The loss function or the dict {'name': loss function}
-            in case of multiple loss setup. If multiple loss is using,
-            loss_cb should be provided.
-            (ex. : torch.nn.CrossEntropyLoss(),
-            {"ce": torch.nn.CrossEntropyLoss(), "bce": torch.nn.BCE()})
         metrics: {"name": metric_function} dict, that contains callable metrics
             for calculating. The metric takes prediction and target
             tensors as parameters, and returns float.
@@ -71,8 +71,9 @@ class Keker:
     """
     def __init__(self,
                  model: torch.nn.Module,
-                 dataowner: DataOwner,
-                 criterion: Union[torch.nn.Module, Dict[str, torch.nn.Module]],
+                 dataowner: Optional[DataOwner] = None,
+                 criterion: Optional[Union[torch.nn.Module,
+                                           Dict[str, torch.nn.Module]]] = None,
                  target_key: str = "label",
                  preds_key: str = "preds",
                  metrics: Optional[Dict[str, Callable]] = None,
@@ -105,15 +106,16 @@ class Keker:
         self.state.core.parallel = False
         if torch.cuda.device_count() > 1:
             self.state.core.model = DataParallelModel(self.state.core.model)
-            if isinstance(self.state.core.criterion, dict):
-                self.state.core.criterion = {
-                    k: DataParallelCriterion(v) for k, v
-                    in self.state.core.criterion.items()
-                }
-            else:
-                self.state.core.criterion = DataParallelCriterion(
-                    self.state.core.criterion
-                )
+            if self.state.core.criterion is not None:
+                if isinstance(self.state.core.criterion, dict):
+                    self.state.core.criterion = {
+                        k: DataParallelCriterion(v) for k, v
+                        in self.state.core.criterion.items()
+                    }
+                else:
+                    self.state.core.criterion = DataParallelCriterion(
+                        self.state.core.criterion
+                    )
             self.state.core.parallel = True
 
         self.opt = opt or SGD
@@ -207,6 +209,16 @@ class Keker:
                 For more info see kekas.callbacks.EarlyStoppingCallback
                 and example ipynb's.
         """
+
+        # check if criterion exists
+        if self.state.core.criterion is None:
+            raise Exception("Keker needs criterion. "
+                            "Reinitialize Keker with one.")
+
+        # check if dataowner exists
+        if self.state.core.dataowner is None:
+            raise Exception("Keker needs Dataowner. "
+                            "Reinitialize Keker with one.")
 
         if stop_iter:
             self.stop_iter = stop_iter
