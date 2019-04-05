@@ -4,8 +4,13 @@ from collections import defaultdict, namedtuple
 from pathlib import Path
 import shutil
 from typing import Any, Callable, Dict, Tuple, Type, List, Optional, Union
+import warnings
 
-from apex import amp
+try:
+    from apex import amp
+except:
+    pass  # warning message appears in keker.py module, no needs to be here
+
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler

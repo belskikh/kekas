@@ -1,8 +1,13 @@
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, List, Tuple, Type, Dict, Union, Optional
+import warnings
 
-from apex import amp
+try:
+    from apex import amp
+except ImportError as e:
+    warnings.warn(f"Error '{e}'' during importing apex library. To use mixed precison"
+                  " you should install it from https://github.com/NVIDIA/apex")
 
 import numpy as np
 
