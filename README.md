@@ -37,7 +37,7 @@ Just contribute something good, and don't contribute anything bad.
 # TODO
 
 - [ ] AdamW
-- [ ] FP16 support 
+- [x] FP16 support 
 - [ ] Discriminative learning rates
 - [ ] Docs :kekeke:
 
@@ -50,7 +50,7 @@ If you find this library useful for your research, please consider citing:
     month       = feb,
     year        = 2019,
     doi         = {10.5281/zenodo.2577861},
-    version     = {0.1.16},
+    version     = {0.1.17},
     publisher   = {Zenodo}, 
     url         = {https://doi.org/10.5281/zenodo.2577861},
     }
