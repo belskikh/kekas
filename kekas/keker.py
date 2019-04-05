@@ -649,6 +649,12 @@ class Keker:
         return res
 
     def to_fp16(self):
+        """Use NVIDIA apex library for mixed precision training.
+        After calling this method, all operations will be used in mixed precision.
+
+        Returns:
+            self
+        """
         self.state.core.model = amp.initialize(self.state.core.model,
                                                opt_level="O1",
                                                verbosity=0)
