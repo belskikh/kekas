@@ -12,6 +12,10 @@ I tried to keep it as simple as possible.
 
 `pip install kekas`
 
+## Mixed Precision requirements
+
+Kekas use https://github.com/NVIDIA/apex library for mixed precision training, so follow the installation instructions from its repo.
+
 # Features
 
 - Awesome name
