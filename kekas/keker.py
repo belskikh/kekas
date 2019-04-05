@@ -2,6 +2,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, List, Tuple, Type, Dict, Union, Optional
 
+from apex import amp
+
 import numpy as np
 
 import torch
@@ -167,6 +169,9 @@ class Keker:
         # Predictions variable
         self.state.core.preds = None
 
+        # FP16 flag
+        self.state.core.use_fp16 = False
+
     def kek(self,
             lr: float,
             epochs: int,
@@ -230,6 +235,12 @@ class Keker:
         opt_params = opt_params or self.opt_params
         params = (p for p in self.state.core.model.parameters() if p.requires_grad)
         self.state.core.opt = opt(params=params, lr=lr, **opt_params)
+
+        if self.state.core.use_fp16:
+            _, self.state.core.opt = amp.initialize(self.state.core.model,
+                                                    self.state.core.opt,
+                                                    opt_level="O1",
+                                                    verbosity=0)
 
         if sched:
             sched_params = sched_params or {}
@@ -636,6 +647,13 @@ class Keker:
             res[k] = v
 
         return res
+
+    def to_fp16(self):
+        self.state.core.model = amp.initialize(self.state.core.model,
+                                               opt_level="O1",
+                                               verbosity=0)
+        self.state.core.use_fp16 = True
+        return self
 
     def set_mode(self, mode: str) -> None:
         """Set the model to train or val and switch dataloaders

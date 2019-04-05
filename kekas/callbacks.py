@@ -3,16 +3,13 @@ from pdb import set_trace
 from collections import defaultdict, namedtuple
 from pathlib import Path
 import shutil
-
 from typing import Any, Callable, Dict, Tuple, Type, List, Optional, Union
 
+from apex import amp
 import numpy as np
-
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
-
 from tensorboardX import SummaryWriter
-
 from .utils import get_opt_lr, get_pbar, DotDict, \
     exp_weight_average, extend_postfix, to_numpy
 
@@ -298,7 +295,11 @@ class SimpleOptimizerCallback(Callback):
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.core.mode == "train":
             state.core.opt.zero_grad()
-            state.core.loss.backward()
+            if state.core.use_fp16:
+                with amp.scale_loss(state.core.loss, state.core.opt) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                state.core.loss.backward()
             state.core.opt.step()
 
 
