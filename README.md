@@ -19,6 +19,7 @@ Kekas use https://github.com/NVIDIA/apex library for mixed precision training, s
 # Features
 
 - Awesome name
+- Mixed Precision (FP16)
 - Learning Rate Finder
 - One Cycle policy
 - Best checkpoints saving
