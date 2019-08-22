@@ -376,19 +376,19 @@ class MetricsCallback(Callback):
 
     def get_metric(self,
                    metric: Callable,
-                   target: torch.Tensor,
-                   preds: Union[List, torch.Tensor]) -> float:
+                   preds: Union[List, torch.Tensor],
+                   target: torch.Tensor) -> float:
         # dataparallel workaround
         if isinstance(preds, list):
             preds = torch.cat(preds)
-        return metric(target, preds)
+        return metric(preds, target)
 
     def update_epoch_metrics(self,
-                             target: torch.Tensor,
-                             preds: Union[List, torch.Tensor]) -> None:
+                             preds: Union[List, torch.Tensor],
+                             target: torch.Tensor) -> None:
 
         for name, m in self.metrics.items():
-            value = self.get_metric(m, target, preds)
+            value = self.get_metric(m, preds, target)
             self.pbar_metrics[name] += value
 
     def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
@@ -397,15 +397,15 @@ class MetricsCallback(Callback):
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.core.mode == "val":
             self.pbar_metrics["val_loss"] += float(to_numpy(state.core.loss))
-            self.update_epoch_metrics(target=state.core.batch[self.target_key],
-                                      preds=state.core.out[self.preds_key])
+            self.update_epoch_metrics(preds=state.core.out[self.preds_key],
+                                      target=state.core.batch[self.target_key])
         # tb logs
         if state.core.mode != "test" and state.core.do_log:
             state.core.metrics[state.core.mode]["loss"] = float(to_numpy(state.core.loss))
             for name, m in self.metrics.items():
                 preds = state.core.out[self.preds_key]
                 target = state.core.batch[self.target_key]
-                value = self.get_metric(m, target, preds)
+                value = self.get_metric(m, preds, target)
                 state.core.metrics[state.core.mode][name] = value
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
