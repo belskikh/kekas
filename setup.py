@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="kekas",
-    version="0.1.18",
+    version="0.1.19",
     author="Aleksandr Belskikh",
     author_email="belskikh.aleksandr@gmail.com",
     description="Just another DL library.",
@@ -25,11 +25,9 @@ setuptools.setup(
         "pandas>=0.22",
         "numpy>=1.14.6",
         "plotly>=3.6.1",
-        "tensorboard>=1.12.2,<2.0",
-        "tensorboardX>=1.6",
-        "tensorflow>=1.12.0,<2.0",
-        "torch>=0.4.1",
-        "torchvision>=0.2.1",
+        "tb-nightly",
+        "torch>=1.2",
+        "torchvision>=0.4",
         "tqdm>=4.29.1",
         "scikit-learn>=0.20"
     ]

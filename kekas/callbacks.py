@@ -14,7 +14,7 @@ except:
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from .utils import get_opt_lr, get_pbar, DotDict, \
     exp_weight_average, extend_postfix, to_numpy
 
@@ -313,17 +313,14 @@ class SimpleSchedulerCallback(Callback):
                  sched: Union[_LRScheduler, ReduceLROnPlateau]) -> None:
         self.metric = "val_loss"
         if isinstance(sched, ReduceLROnPlateau):
-            self.when = "on_epoch_end"
+            self.is_reduce = True
         else:
-            self.when = "on_epoch_begin"
-
-    def on_epoch_begin(self, epoch: int, epochs: int, state: DotDict) -> None:
-        if self.when == "on_epoch_begin" and state.core.mode == "train":
-            state.core.sched.step()
+            self.is_reduce = False
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if self.when == "on_epoch_end" and state.core.mode == "train":
-            state.core.sched.step(state.core.epoch_metrics[self.metric])
+        if state.core.mode == "train":
+            metric = state.core.epoch_metrics[self.metric] if self.is_reduce else None
+            state.core.sched.step(metric)
 
 
 class ProgressBarCallback(Callback):
