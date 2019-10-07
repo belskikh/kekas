@@ -14,12 +14,12 @@ class DataKek(Dataset):
                  reader_fn: Callable,
                  transforms: Optional[Compose] = None) -> None:
         # transform df to list of dict records
-        self.data = df.to_dict("records")
+        self.data = df
         self.reader_fn = reader_fn
         self.transforms = transforms
 
     def __getitem__(self, ind: int) -> Dict:
-        datum = self.reader_fn(ind, self.data[ind])
+        datum = self.reader_fn(ind, self.data.iloc[ind].to_dict())
         if self.transforms is not None:
             datum = self.transforms(datum)
         return datum
