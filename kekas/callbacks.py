@@ -1,14 +1,13 @@
 from pdb import set_trace
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from pathlib import Path
 import shutil
-from typing import Any, Callable, Dict, Tuple, Type, List, Optional, Union
-import warnings
+from typing import Any, Callable, Dict, Tuple, List, Optional, Union
 
 try:
     from apex import amp
-except:
+except ImportError:
     pass  # warning message appears in keker.py module, no needs to be here
 
 import numpy as np
@@ -225,7 +224,7 @@ class TBLogger(Callback):
             self.train_batch_iter += 1
         if mode == "val":
             self.val_iter += 1
-            self.val_batch_iter +=1
+            self.val_batch_iter += 1
         self.total_iter += 1
 
     def on_train_begin(self, state: DotDict) -> None:
@@ -360,6 +359,7 @@ class ProgressBarCallback(Callback):
             state.core.pbar.close()
         elif state.core.mode == "test":
             state.core.pbar.close()
+
 
 class MetricsCallback(Callback):
     def __init__(self,
@@ -577,4 +577,3 @@ class DebuggerCallback(Callback):
     def on_train_end(self, state: DotDict) -> None:
         if "on_train_end" in self.when:
             set_trace()
-

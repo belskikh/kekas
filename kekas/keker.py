@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, List, Tuple, Type, Dict, Union, Optional
+from typing import Callable, List, Tuple, Type, Dict, Union, Optional
 import warnings
 
 try:
@@ -14,7 +14,6 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import SGD
-from torch.nn.parallel import DistributedDataParallel
 
 from .callbacks import Callback, Callbacks, ProgressBarCallback, \
     PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
@@ -791,4 +790,3 @@ class Keker:
     @property
     def is_train(self) -> bool:
         return self.state.core.mode == "train"
-

@@ -15,11 +15,10 @@ def bce_accuracy(preds: torch.Tensor,
     target = target.cpu().detach().numpy()
     preds = (torch.sigmoid(preds).cpu().detach().numpy() > thresh).astype(int)
     return accuracy_score(target, preds)
-  
+
 
 def roc_auc(preds: torch.Tensor,
             target: torch.Tensor) -> float:
     target = target.cpu().detach().numpy()
     preds = torch.sigmoid(preds).cpu().detach().numpy()
     return roc_auc_score(target, preds)
-

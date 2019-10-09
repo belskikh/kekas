@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import torch
 from torch import nn
@@ -22,4 +22,3 @@ class AdaptiveConcatPool2d(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.cat([self.mp(x), self.ap(x)], 1)
-
