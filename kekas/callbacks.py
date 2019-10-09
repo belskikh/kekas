@@ -12,6 +12,7 @@ except ImportError:
 
 import numpy as np
 import torch
+from torch.optim import Optimizer
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 from torch.utils.tensorboard import SummaryWriter
 from .utils import get_opt_lr, get_pbar, DotDict, \
@@ -87,14 +88,14 @@ class LRUpdater(Callback):
         raise NotImplementedError
 
     def update_lr(self,
-                  optimizer: torch.optim.Optimizer) -> float:
+                  optimizer: Optimizer) -> float:
         new_lr = self.calc_lr()
         for pg in optimizer.param_groups:
             pg["lr"] = new_lr
         return new_lr
 
     def update_momentum(self,
-                        optimizer: torch.optim.Optimizer) -> float:
+                        optimizer: Optimizer) -> float:
         new_momentum = self.calc_momentum()
         if "betas" in optimizer.param_groups[0]:
             for pg in optimizer.param_groups:
@@ -424,7 +425,7 @@ class PredictionsSaverCallback(Callback):
             self.savepath = None
             self.return_array = True
         self.preds_key = preds_key
-        self.preds = []
+        self.preds: List = []
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.core.mode == "test":

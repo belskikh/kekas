@@ -11,7 +11,7 @@ def accuracy(preds: torch.Tensor,
 
 def bce_accuracy(preds: torch.Tensor,
                  target: torch.Tensor,
-                 thresh: bool = 0.5) -> float:
+                 thresh: float = 0.5) -> float:
     target = target.cpu().detach().numpy()
     preds = (torch.sigmoid(preds).cpu().detach().numpy() > thresh).astype(int)
     return accuracy_score(target, preds)

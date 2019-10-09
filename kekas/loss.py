@@ -1,4 +1,4 @@
-from typing import List, Tuple, Type, Union
+from typing import List, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -8,7 +8,7 @@ from torch.autograd import Variable
 
 class FocalLoss(nn.Module):
     def __init__(self,
-                 alpha=Union[Tuple[float, int], List],
+                 alpha = Union[Tuple[float, int], List],
                  gamma: int = 0,
                  size_average: bool = True) -> None:
         super(FocalLoss, self).__init__()
@@ -21,8 +21,8 @@ class FocalLoss(nn.Module):
         self.size_average = size_average
 
     def forward(self,
-                input: Type[torch.Tensor],
-                target: Type[torch.Tensor]) -> Type[torch.Tensor]:
+                input: torch.Tensor,
+                target: torch.Tensor) -> torch.Tensor:
         if input.dim() > 2:
             input = input.view(input.size(0), input.size(1), -1)  # N,C,H,W => N,C,H*W
             input = input.transpose(1, 2)    # N,C,H*W => N,H*W,C
