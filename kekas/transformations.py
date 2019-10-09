@@ -27,3 +27,4 @@ def to_torch(scale_factor: float = 255.) -> Callable:
 
 def normalize(stats: Tuple = IMAGENET_STATS) -> Normalize:
     return Normalize(*stats)
+

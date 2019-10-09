@@ -577,3 +577,4 @@ class DebuggerCallback(Callback):
     def on_train_end(self, state: DotDict) -> None:
         if "on_train_end" in self.when:
             set_trace()
+

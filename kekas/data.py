@@ -29,3 +29,4 @@ class DataKek(Dataset):
 
 
 DataOwner = namedtuple("DataOwner", ["train_dl", "val_dl", "test_dl"])
+

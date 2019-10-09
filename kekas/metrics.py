@@ -1,6 +1,5 @@
 from sklearn.metrics import accuracy_score, roc_auc_score
 import torch
-from typing import Type
 
 
 def accuracy(preds: torch.Tensor,
@@ -23,3 +22,4 @@ def roc_auc(preds: torch.Tensor,
     target = target.cpu().detach().numpy()
     preds = torch.sigmoid(preds).cpu().detach().numpy()
     return roc_auc_score(target, preds)
+

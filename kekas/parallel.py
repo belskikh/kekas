@@ -184,3 +184,4 @@ def get_a_var(obj):
             if isinstance(result, torch.tensor):
                 return result
     return None
+
