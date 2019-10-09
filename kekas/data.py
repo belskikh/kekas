@@ -13,15 +13,13 @@ class DataKek(Dataset):
                  df: pd.DataFrame,
                  reader_fn: Callable,
                  transforms: Optional[Compose] = None) -> None:
-        # transform df to list
-        self.data = list(df.values)  # for multiprocessing
-        self.df_columns = df.columns
+        # transform df to list of dict records
+        self.data = df
         self.reader_fn = reader_fn
         self.transforms = transforms
 
     def __getitem__(self, ind: int) -> Dict:
-        data_dict = {col: v for col, v in zip(self.df_columns, self.data[ind])}
-        datum = self.reader_fn(ind, data_dict)
+        datum = self.reader_fn(ind, self.data.iloc[ind].to_dict())
         if self.transforms is not None:
             datum = self.transforms(datum)
         return datum
