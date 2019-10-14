@@ -2,12 +2,10 @@ from pdb import set_trace as st
 
 from functools import reduce
 from pathlib import Path
-import os
 import sys
 from typing import Any, Dict, Union, Hashable, Optional, List
 
 import numpy as np
-from plotly import tools
 from plotly.offline import init_notebook_mode, iplot
 import plotly.graph_objs as go
 from tensorboard.backend.event_processing.event_accumulator import \
@@ -221,7 +219,7 @@ def plot_tensorboard_log(logdir: Union[str, Path],
         try:
             vm = get_scatter(val_scalars, m, prefix="val/")
             data = [tm, vm]
-        except:
+        except Exception:
             data = [tm]
         layout = go.Layout(title=m,
                            height=height,

@@ -1,18 +1,18 @@
 from pdb import set_trace
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from pathlib import Path
 import shutil
-from typing import Any, Callable, Dict, Tuple, Type, List, Optional, Union
-import warnings
+from typing import Any, Callable, Dict, Tuple, List, Optional, Union
 
 try:
     from apex import amp
-except:
+except ImportError:
     pass  # warning message appears in keker.py module, no needs to be here
 
 import numpy as np
 import torch
+from torch.optim import Optimizer
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 from torch.utils.tensorboard import SummaryWriter
 from .utils import get_opt_lr, get_pbar, DotDict, \
@@ -88,14 +88,14 @@ class LRUpdater(Callback):
         raise NotImplementedError
 
     def update_lr(self,
-                  optimizer: torch.optim.Optimizer) -> float:
+                  optimizer: Optimizer) -> float:
         new_lr = self.calc_lr()
         for pg in optimizer.param_groups:
             pg["lr"] = new_lr
         return new_lr
 
     def update_momentum(self,
-                        optimizer: torch.optim.Optimizer) -> float:
+                        optimizer: Optimizer) -> float:
         new_momentum = self.calc_momentum()
         if "betas" in optimizer.param_groups[0]:
             for pg in optimizer.param_groups:
@@ -225,7 +225,7 @@ class TBLogger(Callback):
             self.train_batch_iter += 1
         if mode == "val":
             self.val_iter += 1
-            self.val_batch_iter +=1
+            self.val_batch_iter += 1
         self.total_iter += 1
 
     def on_train_begin(self, state: DotDict) -> None:
@@ -355,11 +355,13 @@ class ProgressBarCallback(Callback):
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         if state.core.mode == "val":
             metrics = state.core.get("epoch_metrics", {})
-            state.core.pbar.set_postfix_str(extend_postfix(state.core.pbar.postfix,
-                                                      metrics))
+            state.core.pbar.set_postfix_str(
+                extend_postfix(state.core.pbar.postfix, metrics)
+                )
             state.core.pbar.close()
         elif state.core.mode == "test":
             state.core.pbar.close()
+
 
 class MetricsCallback(Callback):
     def __init__(self,
@@ -424,7 +426,7 @@ class PredictionsSaverCallback(Callback):
             self.savepath = None
             self.return_array = True
         self.preds_key = preds_key
-        self.preds = []
+        self.preds: List = []
 
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.core.mode == "test":

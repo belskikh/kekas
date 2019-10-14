@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import torch
 from torch import nn
@@ -20,5 +20,5 @@ class AdaptiveConcatPool2d(nn.Module):
         self.ap = nn.AdaptiveAvgPool2d(size)
         self.mp = nn.AdaptiveMaxPool2d(size)
 
-    def forward(self, x: Type[torch.Tensor]) -> Type[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.cat([self.mp(x), self.ap(x)], 1)

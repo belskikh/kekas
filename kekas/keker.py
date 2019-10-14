@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, List, Tuple, Type, Dict, Union, Optional
+from typing import Callable, List, Tuple, Type, Dict, Union, Optional
 import warnings
 
 try:
@@ -13,8 +13,7 @@ import numpy as np
 
 import torch
 from torch.utils.data import DataLoader
-from torch.optim import SGD
-from torch.nn.parallel import DistributedDataParallel
+from torch.optim import SGD, Optimizer
 
 from .callbacks import Callback, Callbacks, ProgressBarCallback, \
     PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
@@ -84,12 +83,12 @@ class Keker:
                  target_key: str = "label",
                  preds_key: str = "preds",
                  metrics: Optional[Dict[str, Callable]] = None,
-                 opt: Optional[Type[torch.optim.Optimizer]] = None,
+                 opt: Optional[torch.optim.Optimizer] = None,
                  opt_params: Optional[Dict] = None,
                  device: Optional[torch.device] = None,
-                 step_fn: Optional[Type[Callback]] = None,
-                 loss_cb: Optional[Type[Callback]] = None,
-                 opt_cb: Optional[Type[Callback]] = None,
+                 step_fn: Optional[Callback] = None,
+                 loss_cb: Optional[Callback] = None,
+                 opt_cb: Optional[Callback] = None,
                  callbacks: Optional[Union[List, Callbacks]] = None) -> None:
 
         # The state is an object that stores many variables and represents
@@ -181,7 +180,7 @@ class Keker:
             lr: float,
             epochs: int,
             skip_val: bool = False,
-            opt: Optional[Type[torch.optim.Optimizer]] = None,
+            opt: Optional[Optimizer] = None,
             opt_params: Optional[Dict] = None,
             sched: Optional[Callable] = None,
             sched_params: Optional[Dict] = None,
@@ -298,7 +297,7 @@ class Keker:
                       momentum_range: Tuple[float, float] = (0.95, 0.85),
                       div_factor: float = 25,
                       increase_fraction: float = 0.3,
-                      opt: Optional[Type[torch.optim.Optimizer]] = None,
+                      opt: Optional[Optimizer] = None,
                       opt_params: Optional[Dict] = None,
                       logdir: Optional[Union[str, Path]] = None,
                       cp_saver_params: Optional[Dict] = None,
@@ -364,7 +363,7 @@ class Keker:
                logdir: Union[str, Path],
                init_lr: float = 1e-6,
                n_steps: Optional[int] = None,
-               opt: Optional[Type[torch.optim.Optimizer]] = None,
+               opt: Optional[Optimizer] = None,
                opt_params: Optional[Dict] = None) -> None:
         """Help you kek your model to the moon by finding "optimal" lr!
 
