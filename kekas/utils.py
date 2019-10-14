@@ -219,7 +219,7 @@ def plot_tensorboard_log(logdir: Union[str, Path],
         try:
             vm = get_scatter(val_scalars, m, prefix="val/")
             data = [tm, vm]
-        except:
+        except Exception:
             data = [tm]
         layout = go.Layout(title=m,
                            height=height,

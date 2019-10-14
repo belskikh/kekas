@@ -355,8 +355,9 @@ class ProgressBarCallback(Callback):
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         if state.core.mode == "val":
             metrics = state.core.get("epoch_metrics", {})
-            state.core.pbar.set_postfix_str(extend_postfix(state.core.pbar.postfix,
-                                                      metrics))
+            state.core.pbar.set_postfix_str(
+                extend_postfix(state.core.pbar.postfix, metrics)
+                )
             state.core.pbar.close()
         elif state.core.mode == "test":
             state.core.pbar.close()

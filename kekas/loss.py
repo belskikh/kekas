@@ -8,7 +8,7 @@ from torch.autograd import Variable
 
 class FocalLoss(nn.Module):
     def __init__(self,
-                 alpha = Union[Tuple[float, int], List],
+                 alpha=Union[Tuple[float, int], List],
                  gamma: int = 0,
                  size_average: bool = True) -> None:
         super(FocalLoss, self).__init__()
