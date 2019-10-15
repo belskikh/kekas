@@ -18,7 +18,8 @@ from torch.optim import SGD, Optimizer
 from .callbacks import Callback, Callbacks, ProgressBarCallback, \
     PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
     TBLogger, LRFinder, CheckpointSaverCallback, SimpleSchedulerCallback, \
-    EarlyStoppingCallback, SimpleOptimizerCallback
+    EarlyStoppingCallback, SimpleOptimizerCallback, MetricsCallbackNew
+
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
 from .utils import DotDict, freeze_to, freeze, unfreeze, load_state_dict, \
@@ -141,7 +142,7 @@ class Keker:
             loss_cb = SimpleLossCallback(target_key, self.preds_key)
 
         opt_cb = opt_cb or SimpleOptimizerCallback()
-        metrics_cb = MetricsCallback(target_key, self.preds_key, metrics)
+        metrics_cb = MetricsCallbackNew(target_key, self.preds_key, metrics)
 
         callbacks = callbacks or []
         self.core_callbacks = callbacks + [loss_cb,
@@ -254,7 +255,8 @@ class Keker:
 
         if logdir:
             self.state.core.do_log = True
-            self.state.core.metrics = defaultdict(dict)
+            self.state.core.batch_metrics = defaultdict(dict)
+            self.state.core.epoch_metrics = defaultdict(dict)
             tboard_cb = TBLogger(logdir)
             self.callbacks = Callbacks(self.callbacks.callbacks + [tboard_cb])
 
