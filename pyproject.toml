@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "kekas"
+version = "0.1.19"
+description = "Just another DL library."
+authors = ["Aleksandr Belskikh <belskikh.aleksandr@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.6"
+torch = "^1.2"
+torchvision = "^0.4.1"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^3.7"
+
+[tool.poetry.scripts]
+flake8 = "flake8 ."
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
