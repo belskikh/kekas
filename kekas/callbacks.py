@@ -358,7 +358,7 @@ class ProgressBarCallback(Callback):
             state.core.pbar.close()
 
 
-class MetricsCallbackNew(Callback):
+class MetricsCallback(Callback):
     def __init__(self,
                  target_key: str,
                  preds_key: str,
@@ -418,84 +418,6 @@ class MetricsCallbackNew(Callback):
                 value = m(val_preds, val_target)
                 state.core.epoch_metrics["val"][name] = value
 
-        self.reset_metrics()
-
-
-
-
-class MetricsCallback(Callback):
-    def __init__(self,
-                 target_key: str,
-                 preds_key: str,
-                 batch_metrics_fns: Optional[Dict[str, Callable]] = None,
-                 epoch_metrics_fns: Optional[Dict[str, Callable]] = None) -> None:
-        self.target_key = target_key
-        self.preds_key = preds_key
-        
-        self.batch_metrics_fns = batch_metrics_fns or {}
-        self.epoch_metrics_fns = epoch_metrics_fns or {}
-
-        self.reset_metrics()
-    
-    def reset_metrics(self):
-        self.batch_metrics_vals = defaultdict(float)
-        self.epoch_metrics_vals = defaultdict(float)
-
-        self.preds = []
-        self.target = []
-
-    def get_metric(self,
-                   metric: Callable,
-                   preds: Union[List, torch.Tensor],
-                   target: torch.Tensor) -> float:
-        # dataparallel workaround
-        if isinstance(preds, list):
-            preds = torch.cat(preds)
-        return metric(preds, target)
-
-    def update_metrics(self,
-                       preds: Union[List, torch.Tensor],
-                       target: torch.Tensor) -> None:
-
-        for name, m in self.batch_metrics_fns.items():
-            value = self.get_metric(m, preds, target)
-            self.batch_metrics_vals[name] += value
-        
-        if self.epoch_metrics_fns:
-            # dataparallel workaround
-            if isinstance(preds, list):
-                preds = torch.cat(preds)
-            self.preds.append(preds)
-            self.target.append(target)
-
-    def on_batch_end(self, i: int, state: DotDict) -> None:
-        if state.core.mode == "val":
-            self.batch_metrics_vals["val_loss"] += float(to_numpy(state.core.loss))
-            self.update_metrics(preds=state.core.out[self.preds_key],
-                                target=state.core.batch[self.target_key])
-        # tb logs
-        if state.core.mode != "test" and state.core.do_log:
-            state.core.batch_metrics[state.core.mode]["loss"] = float(to_numpy(state.core.loss))
-            for name, m in self.batch_metrics_fns.items():
-                preds = state.core.out[self.preds_key]
-                target = state.core.batch[self.target_key]
-                value = self.get_metric(m, preds, target)
-                state.core.batch_metrics[state.core.mode][name] = value
-
-    def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        divider = len(state.core.loader)
-        for k in self.batch_metrics_fns.keys():
-            self.batch_metrics_vals[k] /= divider
-        
-        if self.epoch_metrics_fns:
-            self.preds = torch.cat(self.preds)
-            self.target = torch.cat(self.target)
-
-            for name, m in self.epoch_metrics_fns.items():
-                self.epoch_metrics_vals[name] = m(self.preds, self.target)
-    
-        state.core.epoch_metrics = {**self.batch_metrics_vals,
-                                    **self.epoch_metrics_vals}
         self.reset_metrics()
 
 

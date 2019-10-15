@@ -18,7 +18,7 @@ from torch.optim import SGD, Optimizer
 from .callbacks import Callback, Callbacks, ProgressBarCallback, \
     PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
     TBLogger, LRFinder, CheckpointSaverCallback, SimpleSchedulerCallback, \
-    EarlyStoppingCallback, SimpleOptimizerCallback, MetricsCallbackNew
+    EarlyStoppingCallback, SimpleOptimizerCallback
 
 from .data import DataOwner
 from .parallel import DataParallelCriterion, DataParallelModel
@@ -142,7 +142,7 @@ class Keker:
             loss_cb = SimpleLossCallback(target_key, self.preds_key)
 
         opt_cb = opt_cb or SimpleOptimizerCallback()
-        metrics_cb = MetricsCallbackNew(target_key, self.preds_key, metrics)
+        metrics_cb = MetricsCallback(target_key, self.preds_key, metrics)
 
         callbacks = callbacks or []
         self.core_callbacks = callbacks + [loss_cb,
