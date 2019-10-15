@@ -1,6 +1,5 @@
 import setuptools
 
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -29,6 +28,6 @@ setuptools.setup(
         "torch>=1.2",
         "torchvision>=0.4",
         "tqdm>=4.29.1",
-        "scikit-learn>=0.20"
-    ]
+        "scikit-learn>=0.20",
+    ],
 )

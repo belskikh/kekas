@@ -1,9 +1,10 @@
 from collections import namedtuple
-from typing import Dict, Callable, Optional
-import pandas as pd
+from typing import Callable, Dict, Optional
 
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose
+
+import pandas as pd
 
 
 class DataKek(Dataset):

@@ -1,16 +1,15 @@
 import threading
 
 import torch
-from torch.nn.modules import Module
-from torch.nn.parallel.scatter_gather import scatter_kwargs
-from torch.nn.parallel.replicate import replicate
-from torch.nn.parallel.parallel_apply import parallel_apply
-from torch.autograd import Function
 import torch.cuda.comm as comm
+from torch.autograd import Function
+from torch.nn.modules import Module
 from torch.nn.parallel._functions import Broadcast
+from torch.nn.parallel.parallel_apply import parallel_apply
+from torch.nn.parallel.replicate import replicate
+from torch.nn.parallel.scatter_gather import scatter_kwargs
 
-
-__all__ = ['DataParallelModel', 'DataParallelCriterion']
+__all__ = ["DataParallelModel", "DataParallelCriterion"]
 
 
 class Reduce(Function):

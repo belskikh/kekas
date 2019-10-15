@@ -1,10 +1,26 @@
 [[package]]
 category = "dev"
+description = "Classes Without Boilerplate"
+name = "attrs"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "19.2.0"
+
+[[package]]
+category = "dev"
 description = "Discover and load entry points from installed packages."
 name = "entrypoints"
 optional = false
 python-versions = ">=2.7"
 version = "0.3"
+
+[[package]]
+category = "dev"
+description = "Removes commented-out code."
+name = "eradicate"
+optional = false
+python-versions = "*"
+version = "1.0"
 
 [[package]]
 category = "dev"
@@ -19,6 +35,72 @@ entrypoints = ">=0.3.0,<0.4.0"
 mccabe = ">=0.6.0,<0.7.0"
 pycodestyle = ">=2.5.0,<2.6.0"
 pyflakes = ">=2.1.0,<2.2.0"
+
+[[package]]
+category = "dev"
+description = "A plugin for flake8 finding likely bugs and design problems in your program. Contains warnings that don't belong in pyflakes and pycodestyle."
+name = "flake8-bugbear"
+optional = false
+python-versions = ">=3.5"
+version = "19.8.0"
+
+[package.dependencies]
+attrs = "*"
+flake8 = ">=3.0.0"
+
+[[package]]
+category = "dev"
+description = "A flake8 plugin to help you write better list/set/dict comprehensions."
+name = "flake8-comprehensions"
+optional = false
+python-versions = ">=3.5"
+version = "2.2.0"
+
+[package.dependencies]
+flake8 = "!=3.2.0"
+
+[[package]]
+category = "dev"
+description = "Flake8 plugin to find commented out code"
+name = "flake8-eradicate"
+optional = false
+python-versions = ">=3.6,<4.0"
+version = "0.2.2"
+
+[package.dependencies]
+attrs = ">=18.2,<20.0"
+eradicate = ">=0.2.1,<1.1.0"
+flake8 = ">=3.5,<4.0"
+
+[[package]]
+category = "dev"
+description = "Check for FIXME, TODO and other temporary developer notes. Plugin for flake8."
+name = "flake8-fixme"
+optional = false
+python-versions = "*"
+version = "1.1.1"
+
+[[package]]
+category = "dev"
+description = "mutable defaults flake8 extension"
+name = "flake8-mutable"
+optional = false
+python-versions = "*"
+version = "1.2.0"
+
+[package.dependencies]
+flake8 = "*"
+
+[[package]]
+category = "dev"
+description = "Flake8 lint for quotes."
+name = "flake8-quotes"
+optional = false
+python-versions = "*"
+version = "2.1.0"
+
+[package.dependencies]
+flake8 = "*"
 
 [[package]]
 category = "main"
@@ -103,12 +185,20 @@ six = "*"
 torch = "1.3.0"
 
 [metadata]
-content-hash = "4d8e25481262ffaa5190e1b5cd8aeb532d7afa87f7c99bea051320e18168a731"
+content-hash = "165ddf8b91467b49ffdf81b2bab9933845291504243f1e04a917a0ba3e4e3823"
 python-versions = "^3.6"
 
 [metadata.hashes]
+attrs = ["ec20e7a4825331c1b5ebf261d111e16fa9612c1f7a5e1f884f12bd53a664dfd2", "f913492e1663d3c36f502e5e9ba6cd13cf19d7fab50aa13239e420fef95e1396"]
 entrypoints = ["589f874b313739ad35be6e0cd7efde2a4e9b6fea91edcc34e58ecbb8dbe56d19", "c70dd71abe5a8c85e55e12c19bd91ccfeec11a6e99044204511f9ed547d48451"]
+eradicate = ["4ffda82aae6fd49dfffa777a857cb758d77502a1f2e0f54c9ac5155a39d2d01a"]
 flake8 = ["19241c1cbc971b9962473e4438a2ca19749a7dd002dd1a946eaba171b4114548", "8e9dfa3cecb2400b3738a42c54c3043e821682b9c840b0448c0503f781130696"]
+flake8-bugbear = ["d8c466ea79d5020cb20bf9f11cf349026e09517a42264f313d3f6fddb83e0571", "ded4d282778969b5ab5530ceba7aa1a9f1b86fa7618fc96a19a1d512331640f8"]
+flake8-comprehensions = ["7b174ded3d7e73edf587e942458b6c1a7c3456d512d9c435deae367236b9562c", "e36fc12bd3833e0b34fe0639b7a817d32c86238987f532078c57eafdc7a8a219"]
+flake8-eradicate = ["3c18fe2d14c2e310c38d089f325e28680cd99fa676e7cd3725e498bfd4f52e5d", "f4270cc2584a73fb87bdcce044a198248e72d0253162a8a12333b2c427a18f51"]
+flake8-fixme = ["226a6f2ef916730899f29ac140bed5d4a17e5aba79f00a0e3ae1eff1997cb1ac", "50cade07d27a4c30d4f12351478df87339e67640c83041b664724bda6d16f33a"]
+flake8-mutable = ["38fd9dadcbcda6550a916197bc40ed76908119dabb37fbcca30873666c31d2d5", "ee9b77111b867d845177bbc289d87d541445ffcc6029a0c5c65865b42b18c6a6"]
+flake8-quotes = ["5dbaf668887873f28346fb87943d6da2e4b9f77ce9f2169cff21764a0a4934ed"]
 future = ["6142ef79e2416e432931d527452a1cab3aa4a754a0a53d25b2589f79e1106f34"]
 mccabe = ["ab8a6258860da4b6677da4bd2fe5dc2c659cff31b3ee4f7f5d64e79735b80d42", "dd8d182285a0fe56bace7f45b5e7d1a6ebcbf524e8f3bd87eb0f125271b8831f"]
 numpy = ["05dbfe72684cc14b92568de1bc1f41e5f62b00f714afc9adee42f6311738091f", "0d82cb7271a577529d07bbb05cb58675f2deb09772175fab96dc8de025d8ac05", "10132aa1fef99adc85a905d82e8497a580f83739837d7cbd234649f2e9b9dc58", "12322df2e21f033a60c80319c25011194cd2a21294cc66fee0908aeae2c27832", "16f19b3aa775dddc9814e02a46b8e6ae6a54ed8cf143962b4e53f0471dbd7b16", "3d0b0989dd2d066db006158de7220802899a1e5c8cf622abe2d0bd158fd01c2c", "438a3f0e7b681642898fd7993d38e2bf140a2d1eafaf3e89bb626db7f50db355", "5fd214f482ab53f2cea57414c5fb3e58895b17df6e6f5bca5be6a0bb6aea23bb", "73615d3edc84dd7c4aeb212fa3748fb83217e00d201875a47327f55363cef2df", "7bd355ad7496f4ce1d235e9814ec81ee3d28308d591c067ce92e49f745ba2c2f", "7d077f2976b8f3de08a0dcf5d72083f4af5411e8fddacd662aae27baa2601196", "a4092682778dc48093e8bda8d26ee8360153e2047826f95a3f5eae09f0ae3abf", "b458de8624c9f6034af492372eb2fee41a8e605f03f4732f43fc099e227858b2", "e70fc8ff03a961f13363c2c95ef8285e0cf6a720f8271836f852cc0fa64e97c8", "ee8e9d7cad5fe6dde50ede0d2e978d81eafeaa6233fb0b8719f60214cf226578", "f4a4f6aba148858a5a5d546a99280f71f5ee6ec8182a7d195af1a914195b21a2"]

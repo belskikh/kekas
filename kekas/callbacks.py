@@ -1,22 +1,23 @@
-from pdb import set_trace
-
+import shutil
 from collections import defaultdict
 from pathlib import Path
-import shutil
-from typing import Any, Callable, Dict, Tuple, List, Optional, Union
-
-try:
-    from apex import amp
-except ImportError:
-    pass  # warning message appears in keker.py module, no needs to be here
+from pdb import set_trace
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 from torch.utils.tensorboard import SummaryWriter
-from .utils import get_opt_lr, get_pbar, DotDict, \
-    exp_weight_average, extend_postfix, to_numpy
+
+from .utils import (DotDict, exp_weight_average, extend_postfix, get_opt_lr,
+                    get_pbar, to_numpy)
+
+try:
+    from apex import amp
+except ImportError:
+    pass  # warning message appears in keker.py module, no needs to be here
+
 
 
 class Callback:
@@ -357,7 +358,7 @@ class ProgressBarCallback(Callback):
             metrics = state.core.get("epoch_metrics", {})
             state.core.pbar.set_postfix_str(
                 extend_postfix(state.core.pbar.postfix, metrics)
-                )
+            )
             state.core.pbar.close()
         elif state.core.mode == "test":
             state.core.pbar.close()

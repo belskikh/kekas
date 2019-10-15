@@ -1,23 +1,22 @@
-from pdb import set_trace as st
-
+import logging
+import sys
 from functools import reduce
 from pathlib import Path
-import sys
-from typing import Any, Dict, Union, Hashable, Optional, List
+from pdb import set_trace as st
+from typing import Any, Dict, Hashable, List, Optional, Union
 
 import numpy as np
-from plotly.offline import init_notebook_mode, iplot
-import plotly.graph_objs as go
-from tensorboard.backend.event_processing.event_accumulator import \
-    EventAccumulator, ScalarEvent
-from tqdm import tqdm
-
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-import logging
-logging.getLogger('tensorflow').addFilter(lambda x: 0)
+import plotly.graph_objs as go
+from plotly.offline import init_notebook_mode, iplot
+from tensorboard.backend.event_processing.event_accumulator import (
+    EventAccumulator, ScalarEvent)
+from tqdm import tqdm
+
+logging.getLogger("tensorflow").addFilter(lambda x: 0)
 
 BN_TYPES = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)
 

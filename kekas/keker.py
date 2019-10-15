@@ -1,28 +1,32 @@
+import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, List, Tuple, Type, Dict, Union, Optional
-import warnings
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+
+import numpy as np
+import torch
+from torch.optim import SGD, Optimizer
+from torch.utils.data import DataLoader
+
+from .callbacks import (Callback, Callbacks, CheckpointSaverCallback,
+                        EarlyStoppingCallback, LRFinder, MetricsCallback,
+                        OneCycleLR, PredictionsSaverCallback,
+                        ProgressBarCallback, SimpleLossCallback,
+                        SimpleOptimizerCallback, SimpleSchedulerCallback,
+                        TBLogger)
+from .data import DataOwner
+from .parallel import DataParallelCriterion, DataParallelModel
+from .utils import (DotDict, freeze, freeze_to, load_state_dict,
+                    plot_tensorboard_log, unfreeze)
 
 try:
     from apex import amp
 except ImportError as e:
     warnings.warn(f'Error "{e}" during importing apex library. To use mixed precison'
-                  ' you should install it from https://github.com/NVIDIA/apex')
+                  " you should install it from https://github.com/NVIDIA/apex")
 
-import numpy as np
 
-import torch
-from torch.utils.data import DataLoader
-from torch.optim import SGD, Optimizer
 
-from .callbacks import Callback, Callbacks, ProgressBarCallback, \
-    PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
-    TBLogger, LRFinder, CheckpointSaverCallback, SimpleSchedulerCallback, \
-    EarlyStoppingCallback, SimpleOptimizerCallback
-from .data import DataOwner
-from .parallel import DataParallelCriterion, DataParallelModel
-from .utils import DotDict, freeze_to, freeze, unfreeze, load_state_dict, \
-    plot_tensorboard_log
 
 
 class Keker:

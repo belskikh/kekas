@@ -1,5 +1,6 @@
-from sklearn.metrics import accuracy_score, roc_auc_score
 import torch
+
+from sklearn.metrics import accuracy_score, roc_auc_score
 
 
 def accuracy(preds: torch.Tensor,
