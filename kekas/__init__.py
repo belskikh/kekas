@@ -7,11 +7,11 @@ from . import modules
 __version__ = "0.1.19"
 
 __all__ = [
-    'Keker',
-    'DataKek',
-    'DataOwner',
-    'Transformer',
-    'to_torch',
-    'normalize',
-    'modules',
+    "Keker",
+    "DataKek",
+    "DataOwner",
+    "Transformer",
+    "to_torch",
+    "normalize",
+    "modules",
 ]

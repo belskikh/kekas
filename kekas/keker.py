@@ -6,8 +6,8 @@ import warnings
 try:
     from apex import amp
 except ImportError as e:
-    warnings.warn(f"Error \"{e}\" during importing apex library. To use mixed precison"
-                  " you should install it from https://github.com/NVIDIA/apex")
+    warnings.warn(f'Error "{e}" during importing apex library. To use mixed precison'
+                  ' you should install it from https://github.com/NVIDIA/apex')
 
 import numpy as np
 
