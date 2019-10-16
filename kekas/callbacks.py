@@ -261,16 +261,15 @@ class TBLogger(Callback):
             self.update_total_iter(state.core.mode)
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if state.core.mode == "train":
-            for name, metric in state.core.epoch_metrics["train"].items(): 
-                self.train_writer.add_scalar(f"epoch/{name}",
-                                             float(metric),
-                                             global_step=epoch)
-        if state.core.mode == "val":
-            for name, metric in state.core.epoch_metrics["val"].items():
-                self.val_writer.add_scalar(f"epoch/{name}",
-                                           float(metric),
-                                           global_step=epoch)
+        for name, metric in state.core.epoch_metrics["train"].items():
+            self.train_writer.add_scalar(f"epoch/{name}",
+                                            float(metric),
+                                            global_step=epoch)
+
+        for name, metric in state.core.epoch_metrics["val"].items():
+            self.val_writer.add_scalar(f"epoch/{name}",
+                                        float(metric),
+                                        global_step=epoch)
 
     def on_train_end(self, state: DotDict) -> None:
         self.train_writer.close()
@@ -347,9 +346,11 @@ class ProgressBarCallback(Callback):
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         if state.core.mode == "val":
-            metrics = state.core.get("epoch_metrics", {}).get("val", {})
+            metrics = state.core.get("epoch_metrics", {}).get("val", {}).copy()
             if metrics:
-                metrics["val_loss"] = metrics.pop("loss")
+                # rename "loss" to "val_loss" and put it in the 1st place in dct
+                metrics_tmp = {"val_loss": metrics.pop("loss")}
+                metrics = dict(metrics_tmp, **metrics)
             state.core.pbar.set_postfix_str(
                 extend_postfix(state.core.pbar.postfix, metrics)
                 )
@@ -368,7 +369,7 @@ class MetricsCallback(Callback):
 
         self.metrics = metrics or {}
         self.reset_metrics()
-    
+
     def reset_metrics(self):
         self.train_metrics = defaultdict(float)
 
@@ -407,12 +408,13 @@ class MetricsCallback(Callback):
             for k in self.train_metrics.keys():
                 self.train_metrics[k] /= divider
             state.core.epoch_metrics["train"] = self.train_metrics
-        
+
         if self.val_preds:
             val_preds = torch.cat(self.val_preds)
             val_target = torch.cat(self.val_target)
 
-            total_val_loss = float(to_numpy(state.core.criterion(val_preds, val_target)))
+            total_val_loss = float(to_numpy(state.core.criterion(val_preds,
+                                                                 val_target)))
             state.core.epoch_metrics["val"]["loss"] = total_val_loss
             for name, m in self.metrics.items():
                 value = m(val_preds, val_target)
