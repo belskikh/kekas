@@ -242,10 +242,11 @@ class Keker:
         self.state.core.opt = opt(params=params, lr=lr, **opt_params)
 
         if self.state.core.use_fp16:
-            _, self.state.core.opt = amp.initialize(self.state.core.model,
-                                                    self.state.core.opt,
-                                                    opt_level="O1",
-                                                    verbosity=0)
+            _, self.state.core.opt = amp.initialize(
+                self.state.core.model,
+                self.state.core.opt,
+                **self.state.core.amp_params
+            )
 
         if sched:
             sched_params = sched_params or {}
@@ -654,16 +655,17 @@ class Keker:
 
         return res
 
-    def to_fp16(self):
+    def to_fp16(self, **amp_params):
         """Use NVIDIA apex library for mixed precision training.
         After calling this method, all operations will be used in mixed precision.
 
         Returns:
             self
         """
+        amp_params = dict({"opt_level": "O1", "verbosity": 0}, **amp_params)
+        self.state.core.amp_params = amp_params
         self.state.core.model = amp.initialize(self.state.core.model,
-                                               opt_level="O1",
-                                               verbosity=0)
+                                               **amp_params)
         self.state.core.use_fp16 = True
         return self
 
