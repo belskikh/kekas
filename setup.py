@@ -23,9 +23,9 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         "pandas>=0.22",
-        "numpy>=1.14.6",
-        "plotly>=3.6.1",
-        "tb-nightly",
+        "numpy>=1.16.4",
+        "plotly>=4",
+        "tb-nightly>=0.14",
         "torch>=1.2",
         "torchvision>=0.4",
         "tqdm>=4.29.1",
