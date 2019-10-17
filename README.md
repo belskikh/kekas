@@ -22,6 +22,7 @@ Kekas use https://github.com/NVIDIA/apex library for mixed precision training, s
 - Mixed Precision (FP16)
 - Learning Rate Finder
 - One Cycle policy
+- Tensoboard logging
 - Best checkpoints saving
 - Early stopping
 - TTA
@@ -33,18 +34,11 @@ Kekas use https://github.com/NVIDIA/apex library for mixed precision training, s
 I don't beieve in quick start guides, I think that they create more questions
 than answers.
 
-Instead, I've created a detailed [Tutorial notebook](Tutorial.ipynb). Read it.
+Instead, I've created a detailed [Tutorial notebook](Tutorial.ipynb). Read it.[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/belskikh/kekas/blob/master/Tutorial.ipynb)
 
 # Contribution guide
 
-Just contribute something good, and don't contribute anything bad.
-
-# TODO
-
-- [ ] AdamW
-- [x] FP16 support
-- [ ] Discriminative learning rates
-- [ ] Docs :kekeke:
+Just contribute something good and don't contribute anything bad.
 
 # Citing
 If you find this library useful for your research, please consider citing:
@@ -52,10 +46,10 @@ If you find this library useful for your research, please consider citing:
 @misc{aleksandr belskikh_2019,
     author      = {Aleksandr Belskikh},
     title       = {{kekas: Just another DL library}},
-    month       = sep,
+    month       = oct,
     year        = 2019,
     doi         = {10.5281/zenodo.2577861},
-    version     = {0.1.19},
+    version     = {0.1.20},
     publisher   = {Zenodo},
     url         = {https://doi.org/10.5281/zenodo.2577861},
     }
