@@ -225,4 +225,5 @@ def plot_tensorboard_log(logdir: Union[str, Path],
                            height=height,
                            width=width,
                            yaxis=dict(hoverformat=".6f"))
-        iplot(go.Figure(data=data, layout=layout))
+        fig = go.Figure(data=data, layout=layout)
+        fig.show()
