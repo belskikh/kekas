@@ -231,7 +231,7 @@ class Keker:
                             "Reinitialize Keker with one.")
 
         if stop_iter:
-            self.stop_iter = stop_iter
+            self.state.core.stop_iter = stop_iter
 
         # save callbacks
         callbacks = self.callbacks
@@ -453,7 +453,7 @@ class Keker:
 
     @staticmethod
     def default_step_fn(model: torch.nn.Module,
-                        batch: torch.Tensor) -> torch.Tensor:
+                        batch: Dict[str, torch.Tensor]) -> torch.Tensor:
         """Determine what your model will do with your data.
 
         Args:
