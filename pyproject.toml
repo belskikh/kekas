@@ -9,6 +9,11 @@ license = "MIT"
 python = "^3.6"
 torch = "^1.2"
 torchvision = "^0.4.1"
+numpy = "^1.16.4"
+plotly = "^4.0"
+pandas = "^0.22"
+tqdm = "^4.29.1"
+scikit-learn = "^0.20"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.7"
