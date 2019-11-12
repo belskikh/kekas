@@ -1,30 +1,26 @@
-from pdb import set_trace as st
-
+import logging
+import sys
 from functools import reduce
 from pathlib import Path
-import sys
-from typing import Any, Dict, Union, Hashable, Optional, List
+from pdb import set_trace as st
+from typing import Any, Dict, Hashable, List, Optional, Union
 
 import numpy as np
-from plotly.offline import init_notebook_mode, iplot
-import plotly.graph_objs as go
-from tensorboard.backend.event_processing.event_accumulator import \
-    EventAccumulator, ScalarEvent
-from tqdm import tqdm
-
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-import logging
-logging.getLogger('tensorflow').addFilter(lambda x: 0)
+import plotly.graph_objs as go
+from plotly.offline import init_notebook_mode, iplot
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator, ScalarEvent
+from tqdm import tqdm
+
+logging.getLogger("tensorflow").addFilter(lambda x: 0)
 
 BN_TYPES = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)
 
 
-def freeze_to(module: nn.Module,
-              n: int,
-              freeze_bn: bool = False) -> None:
+def freeze_to(module: nn.Module, n: int, freeze_bn: bool = False) -> None:
     layers = list(module.children())
     for l in layers[:n]:
         for module in flatten_layer(l):
@@ -36,8 +32,7 @@ def freeze_to(module: nn.Module,
             set_grad(module, requires_grad=True)
 
 
-def freeze(module: nn.Module,
-           freeze_bn: bool = False) -> None:
+def freeze(module: nn.Module, freeze_bn: bool = False) -> None:
     freeze_to(module=module, n=-1, freeze_bn=freeze_bn)
 
 
@@ -56,19 +51,20 @@ def set_grad(module: nn.Module, requires_grad: bool) -> None:
 # https://github.com/fastai/fastai/blob/6778fd518e95ea8e1ce1e31a2f96590ee254542c/fastai/torch_core.py#L157
 class ParameterModule(nn.Module):
     """Register a lone parameter `p` in a module."""
+
     def __init__(self, p: nn.Parameter):
         super().__init__()
         self.val = p
 
-    def forward(self, x): return x
+    def forward(self, x):
+        return x
 
 
 # https://github.com/fastai/fastai/blob/6778fd518e95ea8e1ce1e31a2f96590ee254542c/fastai/torch_core.py#L149
 def children_and_parameters(m: nn.Module):
     """Return the children of `m` and its direct parameters not registered in modules."""
     children = list(m.children())
-    children_p = sum([[id(p) for p in c.parameters()] for c in m.children()],
-                     [])
+    children_p = sum([[id(p) for p in c.parameters()] for c in m.children()], [])
     for p in m.parameters():
         if id(p) not in children_p:
             st()
@@ -90,23 +86,17 @@ def to_numpy(data: torch.Tensor) -> np.ndarray:
     return data.detach().cpu().numpy()
 
 
-def exp_weight_average(curr_val: Union[float, torch.Tensor],
-                       prev_val: float,
-                       alpha: float = 0.9) -> float:
+def exp_weight_average(
+    curr_val: Union[float, torch.Tensor], prev_val: float, alpha: float = 0.9
+) -> float:
     if isinstance(curr_val, torch.Tensor):
         curr_val = to_numpy(curr_val)
     return float(alpha * prev_val + (1 - alpha) * curr_val)
 
 
-def get_pbar(dataloader: DataLoader,
-             description: str) -> tqdm:
+def get_pbar(dataloader: DataLoader, description: str) -> tqdm:
 
-    pbar = tqdm(
-        total=len(dataloader),
-        leave=True,
-        ncols=0,
-        desc=description,
-        file=sys.stdout)
+    pbar = tqdm(total=len(dataloader), leave=True, ncols=0, desc=description, file=sys.stdout)
 
     return pbar
 
@@ -129,6 +119,7 @@ class DotDict(dict):
     Example:
     m = Map({'first_name': 'Eduardo'}, last_name='Pool', age=24, sports=['Soccer'])
     """
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         for arg in args:
@@ -158,9 +149,7 @@ class DotDict(dict):
         del self.__dict__[key]
 
 
-def load_state_dict(model: torch.nn.Module,
-                    state_dict: Dict,
-                    skip_wrong_shape: bool = False):
+def load_state_dict(model: torch.nn.Module, state_dict: Dict, skip_wrong_shape: bool = False):
     model_state_dict = model.state_dict()
 
     for key in state_dict:
@@ -168,22 +157,25 @@ def load_state_dict(model: torch.nn.Module,
             if model_state_dict[key].shape == state_dict[key].shape:
                 model_state_dict[key] = state_dict[key]
             elif not skip_wrong_shape:
-                m = f"Shapes of the '{key}' parameters do not match: " \
+                m = (
+                    f"Shapes of the '{key}' parameters do not match: "
                     f"{model_state_dict[key].shape} vs {state_dict[key].shape}"
+                )
                 raise Exception(m)
 
     model.load_state_dict(model_state_dict)
 
 
-def get_tensorboard_scalars(logdir: str,
-                            metrics: Optional[List[str]],
-                            step: str) -> Dict[str, List]:
+def get_tensorboard_scalars(
+    logdir: str, metrics: Optional[List[str]], step: str
+) -> Dict[str, List]:
     event_acc = EventAccumulator(str(logdir))
     event_acc.Reload()
 
     if metrics is not None:
-        scalar_names = [n for n in event_acc.Tags()["scalars"] if step in n
-                        and any(m in n for m in metrics)]
+        scalar_names = [
+            n for n in event_acc.Tags()["scalars"] if step in n and any(m in n for m in metrics)
+        ]
     else:
         scalar_names = [n for n in event_acc.Tags()["scalars"] if step in n]
 
@@ -191,25 +183,25 @@ def get_tensorboard_scalars(logdir: str,
     return scalars
 
 
-def get_scatter(scalars: Dict[str, ScalarEvent],
-                name: str,
-                prefix: str) -> go.Scatter:
+def get_scatter(scalars: Dict[str, ScalarEvent], name: str, prefix: str) -> go.Scatter:
     xs = [s.step for s in scalars[name]]
     ys = [s.value for s in scalars[name]]
 
-    return go.Scatter(x=xs, y=ys, name=prefix+name)
+    return go.Scatter(x=xs, y=ys, name=prefix + name)
 
 
-def plot_tensorboard_log(logdir: Union[str, Path],
-                         step: Optional[str] = "batch",
-                         metrics: Optional[List[str]] = None,
-                         height: Optional[int] = None,
-                         width: Optional[int] = None) -> None:
+def plot_tensorboard_log(
+    logdir: Union[str, Path],
+    step: Optional[str] = "batch",
+    metrics: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+) -> None:
     init_notebook_mode(connected=True)
     logdir = Path(logdir)
 
-    train_scalars = get_tensorboard_scalars(logdir/"train", metrics, step)
-    val_scalars = get_tensorboard_scalars(logdir/"val", metrics, step)
+    train_scalars = get_tensorboard_scalars(logdir / "train", metrics, step)
+    val_scalars = get_tensorboard_scalars(logdir / "val", metrics, step)
 
     if height is not None:
         height = height // len(train_scalars)
@@ -221,9 +213,6 @@ def plot_tensorboard_log(logdir: Union[str, Path],
             data = [tm, vm]
         except Exception:
             data = [tm]
-        layout = go.Layout(title=m,
-                           height=height,
-                           width=width,
-                           yaxis=dict(hoverformat=".6f"))
+        layout = go.Layout(title=m, height=height, width=width, yaxis=dict(hoverformat=".6f"))
         fig = go.Figure(data=data, layout=layout)
         fig.show()
