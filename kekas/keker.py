@@ -185,6 +185,7 @@ class Keker:
             opt_params: Optional[Dict] = None,
             sched: Optional[Callable] = None,
             sched_params: Optional[Dict] = None,
+            reduce_metric: Optional[str] = None,
             stop_iter: Optional[int] = None,
             logdir: Optional[Union[str, Path]] = None,
             cp_saver_params: Optional[Dict] = None,
@@ -206,6 +207,7 @@ class Keker:
                 must be specified too.
                 Ex: torch.optim.lr_scheduler.StepLR.
             sched_params: kwargs dict parameters for scheduler
+            reduce_metric: metric to track if sched is ReduceLROnPlateau
             stop_iter: number of batch when you want to end an epoch
             logdir: If provided, the TBLogger will be created and tensorboard
                 logs will be written in this directory.
@@ -251,7 +253,10 @@ class Keker:
         if sched:
             sched_params = sched_params or {}
             self.state.core.sched = sched(optimizer=self.state.core.opt, **sched_params)
-            sched_cb = SimpleSchedulerCallback(sched=self.state.core.sched)
+            sched_cb = SimpleSchedulerCallback(
+                    sched=self.state.core.sched,
+                    metric=reduce_metric
+            )
             self.callbacks = Callbacks(self.callbacks.callbacks + [sched_cb])
 
         if logdir:

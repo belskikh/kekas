@@ -302,16 +302,14 @@ class SimpleOptimizerCallback(Callback):
 
 class SimpleSchedulerCallback(Callback):
     def __init__(self,
-                 sched: Union[_LRScheduler, ReduceLROnPlateau]) -> None:
-        self.metric = "val_loss"
-        if isinstance(sched, ReduceLROnPlateau):
-            self.is_reduce = True
-        else:
-            self.is_reduce = False
+                 sched: Union[_LRScheduler, ReduceLROnPlateau],
+                 metric: str = None) -> None:
+        self.metric = "loss" or metric
+        self.is_reduce = isinstance(sched, ReduceLROnPlateau)
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
-        if state.core.mode == "train":
-            metric = state.core.epoch_metrics[self.metric] if self.is_reduce else None
+        if state.core.mode == "val":
+            metric = state.core.epoch_metrics["val"][self.metric] if self.is_reduce else None
             state.core.sched.step(metric)
 
 
@@ -464,7 +462,7 @@ class CheckpointSaverCallback(Callback):
                  n_best: int = 3,
                  prefix: Optional[str] = None,
                  mode: str = "min") -> None:
-        self.metric = metric or "val_loss"
+        self.metric = metric or "loss"
         self.n_best = n_best
         self.savedir = Path(savedir)
         self.prefix = f"{prefix}." if prefix is not None else "checkpoint."
@@ -499,7 +497,7 @@ class CheckpointSaverCallback(Callback):
     def on_train_end(self, state: DotDict) -> None:
         best_cp = self.savedir / self.best_scores[0][1]
         shutil.copy(str(best_cp), f"{self.savedir}/{self.prefix}best.h5")
-        print(f"\nCheckpoint\t{self.metric or 'val_loss'}")
+        print(f"\nCheckpoint\t{self.metric}")
         for score in self.best_scores:
             print(f"{self.savedir/score[1]}\t{score[0]:.6f}")
 
@@ -511,7 +509,7 @@ class EarlyStoppingCallback(Callback):
                  mode: str = "min",
                  min_delta: int = 0) -> None:
         self.best_score = None
-        self.metric = metric or "val_loss"
+        self.metric = metric or "loss"
         self.patience = patience
         self.num_bad_epochs = 0
         self.is_better = None
