@@ -46,10 +46,10 @@ If you find this library useful for your research, please consider citing:
 @misc{aleksandr belskikh_2019,
     author      = {Aleksandr Belskikh},
     title       = {{kekas: Just another DL library}},
-    month       = oct,
+    month       = dec,
     year        = 2019,
     doi         = {10.5281/zenodo.2577861},
-    version     = {0.1.20},
+    version     = {0.1.22},
     publisher   = {Zenodo},
     url         = {https://doi.org/10.5281/zenodo.2577861},
     }
