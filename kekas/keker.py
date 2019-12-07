@@ -1,29 +1,39 @@
+import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, List, Tuple, Type, Dict, Union, Optional
-import warnings
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+
+import numpy as np
+import torch
+from torch.optim import SGD, Optimizer
+from torch.utils.data import DataLoader
+
+from .callbacks import (
+    Callback,
+    Callbacks,
+    CheckpointSaverCallback,
+    EarlyStoppingCallback,
+    LRFinder,
+    MetricsCallback,
+    OneCycleLR,
+    PredictionsSaverCallback,
+    ProgressBarCallback,
+    SimpleLossCallback,
+    SimpleOptimizerCallback,
+    SimpleSchedulerCallback,
+    TBLogger,
+)
+from .data import DataOwner
+from .parallel import DataParallelCriterion, DataParallelModel
+from .utils import DotDict, freeze, freeze_to, load_state_dict, plot_tensorboard_log, unfreeze
 
 try:
     from apex import amp
 except ImportError as e:
-    warnings.warn(f"Error \"{e}\" during importing apex library. To use mixed precison"
-                  " you should install it from https://github.com/NVIDIA/apex")
-
-import numpy as np
-
-import torch
-from torch.utils.data import DataLoader
-from torch.optim import SGD, Optimizer
-
-from .callbacks import Callback, Callbacks, ProgressBarCallback, \
-    PredictionsSaverCallback, OneCycleLR, SimpleLossCallback, MetricsCallback, \
-    TBLogger, LRFinder, CheckpointSaverCallback, SimpleSchedulerCallback, \
-    EarlyStoppingCallback, SimpleOptimizerCallback
-
-from .data import DataOwner
-from .parallel import DataParallelCriterion, DataParallelModel
-from .utils import DotDict, freeze_to, freeze, unfreeze, load_state_dict, \
-    plot_tensorboard_log
+    warnings.warn(
+        f'Error "{e}" during importing apex library. To use mixed precison'
+        " you should install it from https://github.com/NVIDIA/apex"
+    )
 
 
 class Keker:
@@ -76,21 +86,23 @@ class Keker:
         callbacks: custom Callbacks thet will be applied before the core ones.
             For examples see example ipynbs.
     """
-    def __init__(self,
-                 model: torch.nn.Module,
-                 dataowner: Optional[DataOwner] = None,
-                 criterion: Optional[Union[torch.nn.Module,
-                                           Dict[str, torch.nn.Module]]] = None,
-                 target_key: str = "label",
-                 preds_key: str = "preds",
-                 metrics: Optional[Dict[str, Callable]] = None,
-                 opt: Optional[torch.optim.Optimizer] = None,
-                 opt_params: Optional[Dict] = None,
-                 device: Optional[torch.device] = None,
-                 step_fn: Optional[Callback] = None,
-                 loss_cb: Optional[Callback] = None,
-                 opt_cb: Optional[Callback] = None,
-                 callbacks: Optional[Union[List, Callbacks]] = None) -> None:
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        dataowner: Optional[DataOwner] = None,
+        criterion: Optional[Union[torch.nn.Module, Dict[str, torch.nn.Module]]] = None,
+        target_key: str = "label",
+        preds_key: str = "preds",
+        metrics: Optional[Dict[str, Callable]] = None,
+        opt: Optional[torch.optim.Optimizer] = None,
+        opt_params: Optional[Dict] = None,
+        device: Optional[torch.device] = None,
+        step_fn: Optional[Callback] = None,
+        loss_cb: Optional[Callback] = None,
+        opt_cb: Optional[Callback] = None,
+        callbacks: Optional[Union[List, Callbacks]] = None,
+    ) -> None:
 
         # The state is an object that stores many variables and represents
         # the state of your train-val-predict pipeline. state passed to every
@@ -116,20 +128,15 @@ class Keker:
             if self.state.core.criterion is not None:
                 if isinstance(self.state.core.criterion, dict):
                     self.state.core.criterion = {
-                        k: DataParallelCriterion(v) for k, v
-                        in self.state.core.criterion.items()
+                        k: DataParallelCriterion(v) for k, v in self.state.core.criterion.items()
                     }
                 else:
-                    self.state.core.criterion = DataParallelCriterion(
-                        self.state.core.criterion
-                    )
+                    self.state.core.criterion = DataParallelCriterion(self.state.core.criterion)
             self.state.core.parallel = True
 
         self.opt = opt or SGD
         self.opt_params = opt_params or {}
-        self.device = device or torch.device("cuda" if
-                                             torch.cuda.is_available()
-                                             else "cpu")
+        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.state.core.model.to(self.device)
 
         self.step_fn = step_fn or self.default_step_fn
@@ -145,10 +152,12 @@ class Keker:
         metrics_cb = MetricsCallback(target_key, self.preds_key, metrics)
 
         callbacks = callbacks or []
-        self.core_callbacks = callbacks + [loss_cb,
-                                           metrics_cb,
-                                           opt_cb,
-                                           ProgressBarCallback()]
+        self.core_callbacks = callbacks + [
+            loss_cb,
+            metrics_cb,
+            opt_cb,
+            ProgressBarCallback(),
+        ]
         callbacks = self.core_callbacks[:]
 
         self.callbacks = Callbacks(callbacks)
@@ -189,7 +198,8 @@ class Keker:
             stop_iter: Optional[int] = None,
             logdir: Optional[Union[str, Path]] = None,
             cp_saver_params: Optional[Dict] = None,
-            early_stop_params: Optional[Dict] = None) -> None:
+            early_stop_params: Optional[Dict] = None
+        ) -> None:
         """Kek your model to the moon!
 
         Conducts a standard train-val procedure with several options for
@@ -224,13 +234,11 @@ class Keker:
 
         # check if criterion exists
         if self.state.core.criterion is None:
-            raise Exception("Keker needs criterion. "
-                            "Reinitialize Keker with one.")
+            raise Exception("Keker needs criterion. " "Reinitialize Keker with one.")
 
         # check if dataowner exists
         if self.state.core.dataowner.train_dl is None:
-            raise Exception("Keker needs Dataowner. "
-                            "Reinitialize Keker with one.")
+            raise Exception("Keker needs Dataowner. " "Reinitialize Keker with one.")
 
         if stop_iter:
             self.state.core.stop_iter = stop_iter
@@ -245,9 +253,7 @@ class Keker:
 
         if self.state.core.use_fp16:
             _, self.state.core.opt = amp.initialize(
-                self.state.core.model,
-                self.state.core.opt,
-                **self.state.core.amp_params
+                self.state.core.model, self.state.core.opt, **self.state.core.amp_params
             )
 
         if sched:
@@ -299,17 +305,19 @@ class Keker:
             self.state.core.do_log = False
             self.callbacks = callbacks
 
-    def kek_one_cycle(self,
-                      max_lr: float,
-                      cycle_len: int,
-                      momentum_range: Tuple[float, float] = (0.95, 0.85),
-                      div_factor: float = 25,
-                      increase_fraction: float = 0.3,
-                      opt: Optional[Optimizer] = None,
-                      opt_params: Optional[Dict] = None,
-                      logdir: Optional[Union[str, Path]] = None,
-                      cp_saver_params: Optional[Dict] = None,
-                      early_stop_params: Optional[Dict] = None) -> None:
+    def kek_one_cycle(
+        self,
+        max_lr: float,
+        cycle_len: int,
+        momentum_range: Tuple[float, float] = (0.95, 0.85),
+        div_factor: float = 25,
+        increase_fraction: float = 0.3,
+        opt: Optional[Optimizer] = None,
+        opt_params: Optional[Dict] = None,
+        logdir: Optional[Union[str, Path]] = None,
+        cp_saver_params: Optional[Dict] = None,
+        early_stop_params: Optional[Dict] = None,
+    ) -> None:
         """Kek your model to the moon with One Cycle policy!
 
         Conducts a one-cycle train-val procedure with several options for
@@ -349,30 +357,35 @@ class Keker:
 
         # temporarily add OneCycle callback
         len_loader = len(self.state.core.dataowner.train_dl)
-        one_cycle_cb = OneCycleLR(max_lr, cycle_len, len_loader,
-                                  momentum_range, div_factor, increase_fraction)
+        one_cycle_cb = OneCycleLR(
+            max_lr, cycle_len, len_loader, momentum_range, div_factor, increase_fraction
+        )
 
         try:
             self.callbacks = Callbacks(callbacks.callbacks + [one_cycle_cb])
 
-            self.kek(lr=max_lr,
-                     epochs=cycle_len,
-                     opt=opt,
-                     opt_params=opt_params,
-                     logdir=logdir,
-                     cp_saver_params=cp_saver_params,
-                     early_stop_params=early_stop_params)
+            self.kek(
+                lr=max_lr,
+                epochs=cycle_len,
+                opt=opt,
+                opt_params=opt_params,
+                logdir=logdir,
+                cp_saver_params=cp_saver_params,
+                early_stop_params=early_stop_params,
+            )
         finally:
             # set old callbacks without OneCycle
             self.callbacks = callbacks
 
-    def kek_lr(self,
-               final_lr: float,
-               logdir: Union[str, Path],
-               init_lr: float = 1e-6,
-               n_steps: Optional[int] = None,
-               opt: Optional[Optimizer] = None,
-               opt_params: Optional[Dict] = None) -> None:
+    def kek_lr(
+        self,
+        final_lr: float,
+        logdir: Union[str, Path],
+        init_lr: float = 1e-6,
+        n_steps: Optional[int] = None,
+        opt: Optional[Optimizer] = None,
+        opt_params: Optional[Dict] = None,
+    ) -> None:
         """Help you kek your model to the moon by finding "optimal" lr!
 
         Conducts the learning rate find procedure.
@@ -407,21 +420,23 @@ class Keker:
         callbacks = self.callbacks
 
         try:
-            lrfinder_cb = LRFinder(final_lr=final_lr,
-                                   init_lr=init_lr,
-                                   n_steps=n_steps)
+            lrfinder_cb = LRFinder(final_lr=final_lr, init_lr=init_lr, n_steps=n_steps)
 
             self.callbacks = Callbacks(self.core_callbacks + [lrfinder_cb])
-            self.kek(lr=init_lr, epochs=n_epochs, skip_val=True, logdir=logdir,
-                     opt=opt, opt_params=opt_params)
+            self.kek(
+                lr=init_lr,
+                epochs=n_epochs,
+                skip_val=True,
+                logdir=logdir,
+                opt=opt,
+                opt_params=opt_params,
+            )
         finally:
             self.callbacks = callbacks
             self.load(tmp_cp)
             tmp_cp.unlink()
 
-    def _run_epoch(self,
-                   epoch: int,
-                   epochs: int) -> None:
+    def _run_epoch(self, epoch: int, epochs: int) -> None:
         """Run one epoch of train-val procedure
 
         Args:
@@ -440,8 +455,11 @@ class Keker:
 
                 self.callbacks.on_batch_end(i, self.state)
 
-                if (self.state.core.stop_iter and self.state.core.mode == "train"
-                        and i == self.state.core.stop_iter - 1):
+                if (
+                    self.state.core.stop_iter
+                    and self.state.core.mode == "train"
+                    and i == self.state.core.stop_iter - 1
+                ):
                     # break only in train mode and if early stop is set
                     self.state.core.stop_epoch = True
 
@@ -457,8 +475,7 @@ class Keker:
             self.state.core.checkpoint = ""
 
     @staticmethod
-    def default_step_fn(model: torch.nn.Module,
-                        batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def default_step_fn(model: torch.nn.Module, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
         """Determine what your model will do with your data.
 
         Args:
@@ -478,27 +495,22 @@ class Keker:
         Returns:
             the dict that contains prediction tensor for the batch.
         """
-        preds = self.step_fn(model=self.state.core.model,
-                             batch=self.state.core.batch)
+        preds = self.step_fn(model=self.state.core.model, batch=self.state.core.batch)
 
         return {self.preds_key: preds}
 
-    def predict(self,
-                savepath: Optional[Union[str, Path]] = None
-                ) -> Union[None, np.ndarray]:
+    def predict(self, savepath: Optional[Union[str, Path]] = None) -> Union[None, np.ndarray]:
         """Infer the model on test dataloader and saves prediction as numpy array
 
         Args:
             savepath: the directory to save predictions. If not passed,
                 the method will return a numpy array of predictions.
         """
-        return self.predict_loader(loader=self.state.core.dataowner.test_dl,
-                                   savepath=savepath)
+        return self.predict_loader(loader=self.state.core.dataowner.test_dl, savepath=savepath)
 
-    def predict_loader(self,
-                       loader: DataLoader,
-                       savepath: Optional[Union[str, Path]] = None
-                       ) -> Union[None, np.ndarray]:
+    def predict_loader(
+        self, loader: DataLoader, savepath: Optional[Union[str, Path]] = None
+    ) -> Union[None, np.ndarray]:
         """Infer the model on dataloader and saves prediction as numpy array
 
         Args:
@@ -508,9 +520,9 @@ class Keker:
         """
         callbacks = self.callbacks
 
-        tmp_callbacks = Callbacks([ProgressBarCallback(),
-                                   PredictionsSaverCallback(savepath,
-                                                            self.preds_key)])
+        tmp_callbacks = Callbacks(
+            [ProgressBarCallback(), PredictionsSaverCallback(savepath, self.preds_key)]
+        )
 
         self.callbacks = tmp_callbacks
 
@@ -526,10 +538,9 @@ class Keker:
         self.state.core.preds = None
         return preds
 
-    def predict_tensor(self,
-                       tensor: Type[torch.Tensor],
-                       to_numpy: bool = False) -> Union[Type[torch.Tensor],
-                                                        np.ndarray]:
+    def predict_tensor(
+        self, tensor: Type[torch.Tensor], to_numpy: bool = False
+    ) -> Union[Type[torch.Tensor], np.ndarray]:
         """Infer the model on one torch Tensor.
 
         Args:
@@ -552,10 +563,9 @@ class Keker:
             preds = preds.cpu().numpy()
         return preds
 
-    def predict_array(self,
-                      array: np.ndarray,
-                      to_numpy: bool = False) -> Union[Type[torch.Tensor],
-                                                       np.ndarray]:
+    def predict_array(
+        self, array: np.ndarray, to_numpy: bool = False
+    ) -> Union[Type[torch.Tensor], np.ndarray]:
         """Infer the model on one numpy array.
 
         Args:
@@ -569,11 +579,13 @@ class Keker:
         tensor = torch.from_numpy(array)
         return self.predict_tensor(tensor, to_numpy)
 
-    def TTA(self,
-            loader: DataLoader,
-            tfms: Union[List, Dict],
-            savedir: Union[str, Path],
-            prefix: str = "preds") -> None:
+    def TTA(
+        self,
+        loader: DataLoader,
+        tfms: Union[List, Dict],
+        savedir: Union[str, Path],
+        prefix: str = "preds",
+    ) -> None:
         """Conduct the test-time augmentations procedure.
 
         Create predictions for each set of provided transformations and saves
@@ -594,8 +606,7 @@ class Keker:
         elif isinstance(tfms, list):
             names = [f"{prefix}_{i}.npy" for i in range(len(tfms))]
         else:
-            raise ValueError(f"Transforms should be List or Dict, "
-                             f"got {type(tfms)}")
+            raise ValueError(f"Transforms should be List or Dict, " f"got {type(tfms)}")
 
         default_tfms = loader.dataset.transforms
         for name, tfm in zip(names, tfms):
@@ -614,9 +625,7 @@ class Keker:
         savepath.parent.mkdir(exist_ok=True)
         torch.save(self.state.core.model.state_dict(), savepath)
 
-    def load(self,
-             loadpath: Union[str, Path],
-             skip_wrong_shape: bool = False) -> None:
+    def load(self, loadpath: Union[str, Path], skip_wrong_shape: bool = False) -> None:
         """Loads models state dict from the specified path.
 
         Args:
@@ -626,21 +635,21 @@ class Keker:
                 If True, will skip unmatched weights and load only matched.
         """
         loadpath = Path(loadpath)
-        checkpoint = torch.load(loadpath,
-                                map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(loadpath, map_location=lambda storage, loc: storage)
 
         # workaround DataParallelModel
-        if not isinstance(self.state.core.model, DataParallelModel) \
-                and "module." in list(checkpoint.keys())[0]:
+        if (
+            not isinstance(self.state.core.model, DataParallelModel)
+            and "module." in list(checkpoint.keys())[0]
+        ):
             # [7:] is to skip 'module.' in group name
             checkpoint = {k[7:]: v for k, v in checkpoint.items()}
 
-        load_state_dict(model=self.state.core.model,
-                        state_dict=checkpoint,
-                        skip_wrong_shape=skip_wrong_shape)
+        load_state_dict(
+            model=self.state.core.model, state_dict=checkpoint, skip_wrong_shape=skip_wrong_shape,
+        )
 
-    def to_device(self,
-                  batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def to_device(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Moves tensors in batch to self.device.
 
         Args:
@@ -669,8 +678,7 @@ class Keker:
         """
         amp_params = dict({"opt_level": "O1", "verbosity": 0}, **amp_params)
         self.state.core.amp_params = amp_params
-        self.state.core.model = amp.initialize(self.state.core.model,
-                                               **amp_params)
+        self.state.core.model = amp.initialize(self.state.core.model, **amp_params)
         self.state.core.use_fp16 = True
         return self
 
@@ -691,10 +699,7 @@ class Keker:
             self.state.core.loader = self.state.core.dataowner.test_dl
         self.state.core.mode = mode
 
-    def freeze_to(self,
-                  n: int,
-                  freeze_bn: bool = False,
-                  model_attr: Optional[str] = None) -> None:
+    def freeze_to(self, n: int, freeze_bn: bool = False, model_attr: Optional[str] = None) -> None:
         """Freeze model or model's part till specified layer.
 
         Args:
@@ -708,9 +713,7 @@ class Keker:
         module = self.get_model_attr(model_attr)
         freeze_to(module, n, freeze_bn)
 
-    def freeze(self,
-               freeze_bn: bool = False,
-               model_attr: Optional[str] = None) -> None:
+    def freeze(self, freeze_bn: bool = False, model_attr: Optional[str] = None) -> None:
         """Freeze model or model's part till the last layer
 
         Args:
@@ -722,8 +725,7 @@ class Keker:
         module = self.get_model_attr(model_attr)
         freeze(module, freeze_bn)
 
-    def unfreeze(self,
-                 model_attr: Optional[str] = None) -> None:
+    def unfreeze(self, model_attr: Optional[str] = None) -> None:
         """Unfreeze all model or model's part layers.
 
         Args:
@@ -760,11 +762,13 @@ class Keker:
         self.callbacks = Callbacks(callbacks + self.callbacks.callbacks)
 
     @staticmethod
-    def plot_kek(logdir: Union[str, Path],
-                 step: Optional[str] = "batch",
-                 metrics: Optional[List[str]] = None,
-                 height: Optional[int] = None,
-                 width: Optional[int] = None) -> None:
+    def plot_kek(
+        logdir: Union[str, Path],
+        step: Optional[str] = "batch",
+        metrics: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+    ) -> None:
         """Plots your keks results in Jupyter Notebook.
 
         Args:
@@ -778,14 +782,15 @@ class Keker:
             width: the width of the whole resulting plot
 
         """
-        assert step in ["batch", "epoch"], f"Step should be either 'batch' or" \
-                                           f"'epoch', got '{step}'"
+        assert step in ["batch", "epoch"], (
+            f"Step should be either 'batch' or" f"'epoch', got '{step}'"
+        )
         plot_tensorboard_log(logdir, step, metrics, height, width)
 
     @staticmethod
-    def plot_kek_lr(logdir: Union[str, Path],
-                    height: Optional[int] = None,
-                    width: Optional[int] = None) -> None:
+    def plot_kek_lr(
+        logdir: Union[str, Path], height: Optional[int] = None, width: Optional[int] = None,
+    ) -> None:
         """Plots learing rate finding results in Jupyter Notebook
         Args:
             logdir: the logdir that was specified during kek_lr.

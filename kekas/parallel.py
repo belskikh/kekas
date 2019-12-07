@@ -1,16 +1,15 @@
 import threading
 
 import torch
-from torch.nn.modules import Module
-from torch.nn.parallel.scatter_gather import scatter_kwargs
-from torch.nn.parallel.replicate import replicate
-from torch.nn.parallel.parallel_apply import parallel_apply
-from torch.autograd import Function
 import torch.cuda.comm as comm
+from torch.autograd import Function
+from torch.nn.modules import Module
 from torch.nn.parallel._functions import Broadcast
+from torch.nn.parallel.parallel_apply import parallel_apply
+from torch.nn.parallel.replicate import replicate
+from torch.nn.parallel.scatter_gather import scatter_kwargs
 
-
-__all__ = ['DataParallelModel', 'DataParallelCriterion']
+__all__ = ["DataParallelModel", "DataParallelCriterion"]
 
 
 class Reduce(Function):
@@ -53,7 +52,7 @@ class DataParallelModel(Module):
         inputs, kwargs = self.scatter(inputs, kwargs, self.device_ids)
         if len(self.device_ids) == 1:
             return self.module(*inputs[0], **kwargs[0])
-        replicas = self.replicate(self.module, self.device_ids[:len(inputs)])
+        replicas = self.replicate(self.module, self.device_ids[: len(inputs)])
         outputs = self.parallel_apply(replicas, inputs, kwargs)
         return outputs
 
@@ -65,7 +64,7 @@ class DataParallelModel(Module):
         return scatter_kwargs(inputs, kwargs, device_ids, dim=self.dim)
 
     def parallel_apply(self, replicas, inputs, kwargs):
-        return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+        return parallel_apply(replicas, inputs, kwargs, self.device_ids[: len(replicas)])
 
 
 class DataParallelCriterion(Module):
@@ -97,7 +96,7 @@ class DataParallelCriterion(Module):
         if len(self.device_ids) == 1:
             return self.module(inputs, *targets[0], **kwargs[0])
         inputs = [(input,) for input in inputs]
-        replicas = self.replicate(self.module, self.device_ids[:len(inputs)])
+        replicas = self.replicate(self.module, self.device_ids[: len(inputs)])
         outputs = self.parallel_apply(replicas, inputs, targets, kwargs)
         return self.gather(outputs, self.output_device)
 
@@ -110,7 +109,8 @@ class DataParallelCriterion(Module):
 
     def parallel_apply(self, replicas, inputs, targets, kwargs):
         return criterion_parallel_apply(
-            replicas, inputs, targets, kwargs, self.device_ids[:len(replicas)])
+            replicas, inputs, targets, kwargs, self.device_ids[: len(replicas)]
+        )
 
     @staticmethod
     def gather(outputs, output_device):
@@ -149,11 +149,12 @@ def criterion_parallel_apply(modules, inputs, targets, kwargs_tup=None, devices=
                 results[i] = e
 
     if len(modules) > 1:
-        threads = [threading.Thread(target=_worker,
-                                    args=(i, module, input, target, kwargs, device),
-                                    )
-                   for i, (module, input, target, kwargs, device) in
-                   enumerate(zip(modules, inputs, targets, kwargs_tup, devices))]
+        threads = [
+            threading.Thread(target=_worker, args=(i, module, input, target, kwargs, device),)
+            for i, (module, input, target, kwargs, device) in enumerate(
+                zip(modules, inputs, targets, kwargs_tup, devices)
+            )
+        ]
 
         for thread in threads:
             thread.start()

@@ -1,28 +1,28 @@
-from pdb import set_trace
-
+import shutil
 from collections import defaultdict
 from pathlib import Path
-import shutil
-from typing import Any, Callable, Dict, Tuple, List, Optional, Union
-
-try:
-    from apex import amp
-except ImportError:
-    pass  # warning message appears in keker.py module, no needs to be here
+from pdb import set_trace
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 from torch.utils.tensorboard import SummaryWriter
-from .utils import get_opt_lr, get_pbar, DotDict, \
-    exp_weight_average, extend_postfix, to_numpy
+
+from .utils import DotDict, exp_weight_average, extend_postfix, get_opt_lr, get_pbar, to_numpy
+
+try:
+    from apex import amp
+except ImportError:
+    pass  # warning message appears in keker.py module, no needs to be here
 
 
 class Callback:
     """
     Abstract base class used to build new callbacks.
     """
+
     def on_batch_begin(self, i: int, state: DotDict) -> None:
         pass
 
@@ -78,6 +78,7 @@ class Callbacks:
 
 class LRUpdater(Callback):
     """Basic class that all Lr updaters inherit from"""
+
     def __init__(self, init_lr: float) -> None:
         self.init_lr = init_lr
 
@@ -87,15 +88,13 @@ class LRUpdater(Callback):
     def calc_momentum(self) -> float:
         raise NotImplementedError
 
-    def update_lr(self,
-                  optimizer: Optimizer) -> float:
+    def update_lr(self, optimizer: Optimizer) -> float:
         new_lr = self.calc_lr()
         for pg in optimizer.param_groups:
             pg["lr"] = new_lr
         return new_lr
 
-    def update_momentum(self,
-                        optimizer: Optimizer) -> float:
+    def update_momentum(self, optimizer: Optimizer) -> float:
         new_momentum = self.calc_momentum()
         if "betas" in optimizer.param_groups[0]:
             for pg in optimizer.param_groups:
@@ -119,13 +118,16 @@ class OneCycleLR(LRUpdater):
     Inspired by
     https://github.com/fastai/fastai/blob/master/fastai/callbacks/one_cycle.py
     """
-    def __init__(self,
-                 max_lr: float,
-                 cycle_len: int,
-                 len_loader: int,
-                 momentum_range: Tuple[float, float],
-                 div_factor: float,
-                 increase_fraction: float) -> None:
+
+    def __init__(
+        self,
+        max_lr: float,
+        cycle_len: int,
+        len_loader: int,
+        momentum_range: Tuple[float, float],
+        div_factor: float,
+        increase_fraction: float,
+    ) -> None:
         super().__init__(max_lr)
         self.cycle_len = cycle_len
         self.momentum_range = momentum_range
@@ -147,8 +149,7 @@ class OneCycleLR(LRUpdater):
             percent = self.cycle_iter / self.cut_point
 
         else:
-            percent = 1 - (self.cycle_iter - self.cut_point) / (
-                    self.total_iter - self.cut_point)
+            percent = 1 - (self.cycle_iter - self.cut_point) / (self.total_iter - self.cut_point)
 
         res = self.init_lr * (1 + percent * (self.div_factor - 1)) / self.div_factor
 
@@ -160,8 +161,7 @@ class OneCycleLR(LRUpdater):
 
         else:
             percent = (self.cycle_iter - self.cut_point) / (self.total_iter - self.cut_point)
-        res = self.momentum_range[1] + percent * (
-                self.momentum_range[0] - self.momentum_range[1])
+        res = self.momentum_range[1] + percent * (self.momentum_range[0] - self.momentum_range[1])
         return res
 
     def on_batch_begin(self, i: int, state: DotDict) -> None:
@@ -179,18 +179,14 @@ class LRFinder(LRUpdater):
     https://sgugger.github.io/how-do-you-find-a-good-learning-rate.html
     """
 
-    def __init__(self,
-                 final_lr: float,
-                 n_steps: int,
-                 init_lr: float = 1e-6) -> None:
+    def __init__(self, final_lr: float, n_steps: int, init_lr: float = 1e-6) -> None:
         super().__init__(init_lr)
         self.final_lr = final_lr
         self.n_steps = max(1, n_steps - 1)
         self.n = 0
 
     def calc_lr(self) -> float:
-        res = self.init_lr * (self.final_lr / self.init_lr) ** \
-              (self.n / self.n_steps)
+        res = self.init_lr * (self.final_lr / self.init_lr) ** (self.n / self.n_steps)
         self.n += 1
         return res
 
@@ -242,34 +238,28 @@ class TBLogger(Callback):
     def on_batch_end(self, i: int, state: DotDict) -> None:
         if state.core.mode == "train":
             for name, metric in state.core.batch_metrics["train"].items():
-                self.train_writer.add_scalar(f"batch/{name}",
-                                             float(metric),
-                                             global_step=self.total_iter)
+                self.train_writer.add_scalar(
+                    f"batch/{name}", float(metric), global_step=self.total_iter
+                )
             lr = get_opt_lr(state.core.opt)
-            self.train_writer.add_scalar("batch/lr",
-                                         float(lr),
-                                         global_step=self.train_iter)
+            self.train_writer.add_scalar("batch/lr", float(lr), global_step=self.train_iter)
 
             self.update_total_iter(state.core.mode)
 
         elif state.core.mode == "val":
             for name, metric in state.core.batch_metrics["val"].items():
-                self.val_writer.add_scalar(f"batch/{name}",
-                                           float(metric),
-                                           global_step=self.total_iter)
+                self.val_writer.add_scalar(
+                    f"batch/{name}", float(metric), global_step=self.total_iter
+                )
 
             self.update_total_iter(state.core.mode)
 
     def on_epoch_end(self, epoch: int, state: DotDict) -> None:
         for name, metric in state.core.epoch_metrics["train"].items():
-            self.train_writer.add_scalar(f"epoch/{name}",
-                                            float(metric),
-                                            global_step=epoch)
+            self.train_writer.add_scalar(f"epoch/{name}", float(metric), global_step=epoch)
 
         for name, metric in state.core.epoch_metrics["val"].items():
-            self.val_writer.add_scalar(f"epoch/{name}",
-                                        float(metric),
-                                        global_step=epoch)
+            self.val_writer.add_scalar(f"epoch/{name}", float(metric), global_step=epoch)
 
     def on_train_end(self, state: DotDict) -> None:
         self.train_writer.close()
@@ -334,8 +324,7 @@ class ProgressBarCallback(Callback):
             if not self.running_loss:
                 self.running_loss = to_numpy(state.core.loss)
 
-            self.running_loss = exp_weight_average(state.core.loss,
-                                                   self.running_loss)
+            self.running_loss = exp_weight_average(state.core.loss, self.running_loss)
             postfix = {"loss": f"{self.running_loss:.4f}"}
             state.core.pbar.set_postfix(postfix)
             state.core.pbar.update()
@@ -349,19 +338,16 @@ class ProgressBarCallback(Callback):
                 # rename "loss" to "val_loss" and put it in the 1st place in dct
                 metrics_tmp = {"val_loss": metrics.pop("loss")}
                 metrics = dict(metrics_tmp, **metrics)
-            state.core.pbar.set_postfix_str(
-                extend_postfix(state.core.pbar.postfix, metrics)
-                )
+            state.core.pbar.set_postfix_str(extend_postfix(state.core.pbar.postfix, metrics))
             state.core.pbar.close()
         elif state.core.mode == "test":
             state.core.pbar.close()
 
 
 class MetricsCallback(Callback):
-    def __init__(self,
-                 target_key: str,
-                 preds_key: str,
-                 metrics: Optional[Dict[str, Callable]] = None) -> None:
+    def __init__(
+        self, target_key: str, preds_key: str, metrics: Optional[Dict[str, Callable]] = None,
+    ) -> None:
         self.target_key = target_key
         self.preds_key = preds_key
 
@@ -411,8 +397,7 @@ class MetricsCallback(Callback):
             val_preds = torch.cat(self.val_preds)
             val_target = torch.cat(self.val_target)
 
-            total_val_loss = float(to_numpy(state.core.criterion(val_preds,
-                                                                 val_target)))
+            total_val_loss = float(to_numpy(state.core.criterion(val_preds, val_target)))
             state.core.epoch_metrics["val"]["loss"] = total_val_loss
             for name, m in self.metrics.items():
                 value = m(val_preds, val_target)
@@ -422,9 +407,7 @@ class MetricsCallback(Callback):
 
 
 class PredictionsSaverCallback(Callback):
-    def __init__(self,
-                 savepath: Optional[Union[str, Path]],
-                 preds_key: str) -> None:
+    def __init__(self, savepath: Optional[Union[str, Path]], preds_key: str) -> None:
         if savepath is not None:
             self.savepath = Path(savepath)
             self.savepath.parent.mkdir(exist_ok=True)
@@ -456,6 +439,7 @@ class PredictionsSaverCallback(Callback):
 
 
 class CheckpointSaverCallback(Callback):
+<<<<<<< HEAD
     def __init__(self,
                  savedir: str,
                  metric: Optional[str] = None,
@@ -463,6 +447,17 @@ class CheckpointSaverCallback(Callback):
                  prefix: Optional[str] = None,
                  mode: str = "min") -> None:
         self.metric = metric or "loss"
+=======
+    def __init__(
+        self,
+        savedir: str,
+        metric: Optional[str] = None,
+        n_best: int = 3,
+        prefix: Optional[str] = None,
+        mode: str = "min",
+    ) -> None:
+        self.metric = metric or "val_loss"
+>>>>>>> f5bd1f42e6c1f6c62eb1bf3dda8973312ccb4e1b
         self.n_best = n_best
         self.savedir = Path(savedir)
         self.prefix = f"{prefix}." if prefix is not None else "checkpoint."
@@ -485,9 +480,8 @@ class CheckpointSaverCallback(Callback):
             score_val = state.core.epoch_metrics["val"][self.metric]
             score_name = f"{self.prefix}{epoch + 1}.h5"
             score = (score_val, score_name)
-            sorted_scores = sorted(self.best_scores + [score],
-                                   reverse=self.maximize)
-            self.best_scores = sorted_scores[:self.n_best]
+            sorted_scores = sorted(self.best_scores + [score], reverse=self.maximize)
+            self.best_scores = sorted_scores[: self.n_best]
             if score_name in (s[1] for s in self.best_scores):
                 state.core.checkpoint = f"{self.savedir / score_name}"
                 # remove worst checkpoint
@@ -503,11 +497,9 @@ class CheckpointSaverCallback(Callback):
 
 
 class EarlyStoppingCallback(Callback):
-    def __init__(self,
-                 patience: int,
-                 metric: Optional[str] = None,
-                 mode: str = "min",
-                 min_delta: int = 0) -> None:
+    def __init__(
+        self, patience: int, metric: Optional[str] = None, mode: str = "min", min_delta: int = 0,
+    ) -> None:
         self.best_score = None
         self.metric = metric or "loss"
         self.patience = patience
