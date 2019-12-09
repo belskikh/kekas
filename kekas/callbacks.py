@@ -439,25 +439,15 @@ class PredictionsSaverCallback(Callback):
 
 
 class CheckpointSaverCallback(Callback):
-<<<<<<< HEAD
-    def __init__(self,
-                 savedir: str,
-                 metric: Optional[str] = None,
-                 n_best: int = 3,
-                 prefix: Optional[str] = None,
-                 mode: str = "min") -> None:
-        self.metric = metric or "loss"
-=======
     def __init__(
-        self,
-        savedir: str,
-        metric: Optional[str] = None,
-        n_best: int = 3,
-        prefix: Optional[str] = None,
-        mode: str = "min",
-    ) -> None:
-        self.metric = metric or "val_loss"
->>>>>>> f5bd1f42e6c1f6c62eb1bf3dda8973312ccb4e1b
+            self,
+            savedir: str,
+            metric: Optional[str] = None,
+            n_best: int = 3,
+            prefix: Optional[str] = None,
+            mode: str = "min"
+        ) -> None:
+        self.metric = metric or "loss"
         self.n_best = n_best
         self.savedir = Path(savedir)
         self.prefix = f"{prefix}." if prefix is not None else "checkpoint."
