@@ -373,8 +373,8 @@ class MetricsCallback(Callback):
         target = state.core.batch[self.target_key]
 
         if mode == "val":
-            self.val_preds.append(preds)
-            self.val_target.append(target)
+            self.val_preds.append(preds.detach().cpu())
+            self.val_target.append(target.detach().cpu())
 
         # logs
         if state.core.do_log:
