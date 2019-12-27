@@ -121,6 +121,7 @@ class Keker:
         self.preds_key = preds_key
 
         self.state.core.criterion = criterion
+        self.state.core.cpu_criterion = criterion  # for cpu validation
 
         self.state.core.parallel = False
         if torch.cuda.device_count() > 1:

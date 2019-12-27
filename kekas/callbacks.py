@@ -270,12 +270,13 @@ class SimpleLossCallback(Callback):
     def __init__(self, target_key: str, preds_key: str) -> None:
         self.target_key = target_key
         self.preds_key = preds_key
-
+    
     def on_batch_end(self, i: int, state: DotDict) -> None:
-        target = state.core.batch[self.target_key]
-        preds = state.core.out[self.preds_key]
+        if state.core.mode == "train":
+            target = state.core.batch[self.target_key]
+            preds = state.core.out[self.preds_key]
 
-        state.core.loss = state.core.criterion(preds, target)
+            state.core.loss = state.core.criterion(preds, target)
 
 
 class SimpleOptimizerCallback(Callback):
@@ -397,7 +398,7 @@ class MetricsCallback(Callback):
             val_preds = torch.cat(self.val_preds)
             val_target = torch.cat(self.val_target)
 
-            total_val_loss = float(to_numpy(state.core.criterion(val_preds, val_target)))
+            total_val_loss = float(to_numpy(state.core.cpu_criterion(val_preds, val_target)))
             state.core.epoch_metrics["val"]["loss"] = total_val_loss
             for name, m in self.metrics.items():
                 value = m(val_preds, val_target)
