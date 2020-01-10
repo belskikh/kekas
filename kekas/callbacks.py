@@ -127,6 +127,7 @@ class OneCycleLR(LRUpdater):
         momentum_range: Tuple[float, float],
         div_factor: float,
         increase_fraction: float,
+        annealing_cos: bool = False,
     ) -> None:
         super().__init__(max_lr)
         self.cycle_len = cycle_len
@@ -134,6 +135,7 @@ class OneCycleLR(LRUpdater):
         self.div_factor = div_factor
         self.increase_fraction = increase_fraction
         self.len_loader = len_loader
+        self.annealing_cos = annealing_cos
         self.total_iter = None
         self.cycle_iter = 0
         # point in iterations for starting lr decreasing
@@ -151,6 +153,9 @@ class OneCycleLR(LRUpdater):
         else:
             percent = 1 - (self.cycle_iter - self.cut_point) / (self.total_iter - self.cut_point)
 
+        if self.annealing_cos:
+            percent = self.calc_annealing_cos(0, 1, percent)
+
         res = self.init_lr * (1 + percent * (self.div_factor - 1)) / self.div_factor
 
         return res
@@ -161,6 +166,8 @@ class OneCycleLR(LRUpdater):
 
         else:
             percent = (self.cycle_iter - self.cut_point) / (self.total_iter - self.cut_point)
+        if self.annealing_cos:
+            percent = self.calc_annealing_cos(0, 1, percent)
         res = self.momentum_range[1] + percent * (self.momentum_range[0] - self.momentum_range[1])
         return res
 
@@ -168,6 +175,11 @@ class OneCycleLR(LRUpdater):
         super().on_batch_begin(i, state)
         if state.core.mode == "train":
             self.cycle_iter += 1
+
+    def calc_annealing_cos(self, start:int, end:int, pct:float) -> float:
+        "Cosine anneal from `start` to `end` as pct goes from 0.0 to 1.0."
+        cos_out = np.cos(np.pi * pct) + 1
+        return end + (start - end) / 2 * cos_out
 
 
 class LRFinder(LRUpdater):
