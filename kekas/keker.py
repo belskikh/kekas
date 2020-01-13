@@ -313,6 +313,7 @@ class Keker:
         momentum_range: Tuple[float, float] = (0.95, 0.85),
         div_factor: float = 25,
         increase_fraction: float = 0.3,
+        annealing_cos: bool = False,
         opt: Optional[Optimizer] = None,
         opt_params: Optional[Dict] = None,
         logdir: Optional[Union[str, Path]] = None,
@@ -359,7 +360,7 @@ class Keker:
         # temporarily add OneCycle callback
         len_loader = len(self.state.core.dataowner.train_dl)
         one_cycle_cb = OneCycleLR(
-            max_lr, cycle_len, len_loader, momentum_range, div_factor, increase_fraction
+            max_lr, cycle_len, len_loader, momentum_range, div_factor, increase_fraction, annealing_cos
         )
 
         try:
