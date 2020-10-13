@@ -596,4 +596,4 @@ class NeptuneCallback(Callback):
             try:
                 neptune.log_metric('train_loss', state.core.loss.item())
             except Exception as e:
-                continue
+                pass
