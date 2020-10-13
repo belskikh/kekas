@@ -593,4 +593,7 @@ class NeptuneCallback(Callback):
             neptune.log_metric('val_loss', state.core.loss.item())
             
         else:
-            neptune.log_metric('train_loss', state.core.loss.item())
+            try:
+                neptune.log_metric('train_loss', state.core.loss.item())
+            except Exception as e:
+                continue
