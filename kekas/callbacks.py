@@ -3,7 +3,7 @@ from collections import defaultdict
 from pathlib import Path
 from pdb import set_trace
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-
+import neptune
 import numpy as np
 import torch
 from torch.optim import Optimizer
@@ -579,3 +579,18 @@ class DebuggerCallback(Callback):
     def on_train_end(self, state: DotDict) -> None:
         if "on_train_end" in self.when:
             set_trace()
+            
+class NeptuneCallback(Callback):
+    def __init__(self, token, experiment, proj):
+        self.token = token
+        self.experiment = experiment
+        self.proj = proj
+        neptune.init(api_token=token, project_qualified_name=proj)
+        neptune.create_experiment(name=experiment)
+        
+     def on_batch_end(self, state: DotDict):
+        if state.core.mode == "val":
+            neptune.log_metric('val_loss', state.core.batch_metrics[state.core.mode]["loss"])
+            
+        else:
+            neptune.log_metric('train_loss', state.core.batch_metrics[state.core.mode]["loss"])
