@@ -29,5 +29,6 @@ setuptools.setup(
         "torchvision>=0.4",
         "tqdm>=4.29.1",
         "scikit-learn>=0.20",
+        "neptune-client>=0.4.121"
     ],
 )
