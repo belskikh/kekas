@@ -597,3 +597,13 @@ class NeptuneCallback(Callback):
                 neptune.log_metric('train_loss', state.core.loss.item())
             except Exception as e:
                 pass
+            
+     def on_epoch_end(self, epoch: int, state: DotDict):
+        if state.core.mode == "val":
+            neptune.log_metric('val_epoch_loss', state.core.loss.item())
+            
+        else:
+            try:
+                neptune.log_metric('train_epoch_loss', state.core.loss.item())
+            except Exception as e:
+                pass
