@@ -590,20 +590,20 @@ class NeptuneCallback(Callback):
         
     def on_batch_end(self, i:int, state: DotDict):
         if state.core.mode == "val":
-            neptune.log_metric('val_loss', state.core.loss.item())
+            neptune.log_metric('val_loss', keker.state.core.batch_metrics["val"]["loss"])
             
         else:
             try:
-                neptune.log_metric('train_loss', state.core.loss.item())
+                neptune.log_metric('train_loss', keker.state.core.batch_metrics["train"]["loss"])
             except Exception as e:
                 pass
             
     def on_epoch_end(self, epoch: int, state: DotDict):
         if state.core.mode == "val":
-            neptune.log_metric('val_epoch_loss', state.core.loss.item())
+            neptune.log_metric('val_epoch_loss', keker.state.core.batch_metrics["val"]["loss"])
             
         else:
             try:
-                neptune.log_metric('train_epoch_loss', state.core.loss.item())
+                neptune.log_metric('train_epoch_loss', keker.state.core.batch_metrics["train"]["loss"])
             except Exception as e:
                 pass
