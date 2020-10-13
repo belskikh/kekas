@@ -598,7 +598,7 @@ class NeptuneCallback(Callback):
             except Exception as e:
                 pass
             
-     def on_epoch_end(self, epoch: int, state: DotDict):
+    def on_epoch_end(self, epoch: int, state: DotDict):
         if state.core.mode == "val":
             neptune.log_metric('val_epoch_loss', state.core.loss.item())
             
