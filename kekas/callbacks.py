@@ -588,7 +588,7 @@ class NeptuneCallback(Callback):
         neptune.init(api_token=token, project_qualified_name=proj)
         neptune.create_experiment(name=experiment)
         
-    def on_batch_end(self, state: DotDict):
+    def on_batch_end(self, i:int, state: DotDict):
         if state.core.mode == "val":
             neptune.log_metric('val_loss', state.core.batch_metrics[state.core.mode]["loss"])
             
