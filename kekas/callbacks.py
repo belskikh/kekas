@@ -355,6 +355,8 @@ class ProgressBarCallback(Callback):
             state.core.pbar.close()
         elif state.core.mode == "test":
             state.core.pbar.close()
+        elif state.core.mode == "train":
+            state.core.pbar.close()
 
 
 class MetricsCallback(Callback):
