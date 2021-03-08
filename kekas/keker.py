@@ -428,7 +428,7 @@ class Keker:
             self.kek(
                 lr=init_lr,
                 epochs=n_epochs,
-                skip_val=True,
+                skip_val=False,
                 logdir=logdir,
                 opt=opt,
                 opt_params=opt_params,
